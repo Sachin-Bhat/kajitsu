@@ -304,12 +304,20 @@ fn text_column(
     for (text, height) in parts {
         total += height;
 
-        rows.push(Box::new(Rectangle::new().width(width).height(height).child(text)));
+        rows.push(Box::new(
+            Rectangle::new().width(width).height(height).child(text),
+        ));
     }
 
     total += style.text_gap * (rows.len() - 1) as f32;
 
-    (Column::new(rows).width(width).height(total).gap(style.text_gap), total)
+    (
+        Column::new(rows)
+            .width(width)
+            .height(total)
+            .gap(style.text_gap),
+        total,
+    )
 }
 
 fn fitted(text: Text, width: f32) -> (Text, f32) {
@@ -570,4 +578,3 @@ mod tests {
         assert_eq!(decode_url("/100%.png"), "/100%.png");
     }
 }
-

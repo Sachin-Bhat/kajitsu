@@ -53,7 +53,9 @@ pub fn view(width: f32, progress: f32, playing: bool, played: Color, track: Colo
         let line = if waving {
             wave(half_line, end_x, middle)
         } else {
-            Path::new().move_to(half_line, middle).line_to(end_x, middle)
+            Path::new()
+                .move_to(half_line, middle)
+                .line_to(end_x, middle)
         };
 
         shapes.push(Box::new(line.stroke(LINE, played).cap(Cap::Round)));

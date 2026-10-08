@@ -108,8 +108,16 @@ pub fn for_mode(forced: Option<bool>) -> Theme {
     let hover_surface = mix(surface, accent, pick(light, 0.12, 0.20));
     let selected_surface = mix(surface, accent, pick(light, 0.20, 0.15));
 
-    let success = tone(mix(SUCCESS_SEED, accent, 0.20), pick(light, 0.42, 0.70), 0.48);
-    let danger = tone(mix(DANGER_SEED, accent, 0.20), pick(light, 0.42, 0.70), 0.48);
+    let success = tone(
+        mix(SUCCESS_SEED, accent, 0.20),
+        pick(light, 0.42, 0.70),
+        0.48,
+    );
+    let danger = tone(
+        mix(DANGER_SEED, accent, 0.20),
+        pick(light, 0.42, 0.70),
+        0.48,
+    );
 
     // on a light theme the bar's accent pill is darkened so its text stays readable
     let accent = if light {
@@ -215,24 +223,6 @@ pub fn mix(first: Color, second: Color, amount: f32) -> Color {
     )
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn mix_fades_in_from_transparent() {
-        let border = Color::rgb(200, 100, 50);
-
-        assert_eq!(mix(Color::TRANSPARENT, border, 0.0).alpha(), 0);
-
-        let half = mix(Color::TRANSPARENT, border, 0.5);
-
-        assert_eq!((half.red(), half.green(), half.blue(), half.alpha()), (200, 100, 50, 128));
-
-        assert_eq!(mix(Color::BLACK, Color::WHITE, 0.5).red(), 128);
-    }
-}
-
 // relative luminance, to choose dark or light text on the accent
 fn luminance(color: Color) -> f32 {
     let linear = |channel: u8| {
@@ -262,4 +252,25 @@ pub fn retone(color: Color, lightness: f32, min_saturation: f32) -> Color {
     };
 
     tone(color, lightness, min_saturation, &untuned)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mix_fades_in_from_transparent() {
+        let border = Color::rgb(200, 100, 50);
+
+        assert_eq!(mix(Color::TRANSPARENT, border, 0.0).alpha(), 0);
+
+        let half = mix(Color::TRANSPARENT, border, 0.5);
+
+        assert_eq!(
+            (half.red(), half.green(), half.blue(), half.alpha()),
+            (200, 100, 50, 128)
+        );
+
+        assert_eq!(mix(Color::BLACK, Color::WHITE, 0.5).red(), 128);
+    }
 }

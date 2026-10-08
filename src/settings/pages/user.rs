@@ -62,7 +62,10 @@ fn profile(page: &Page) -> Rectangle {
             .font(fonts::BODY)
             .weight(Weight::SemiBold)
             .color(theme.text),
-        Text::new(format!("@{login}")).size(11.0).font(fonts::BODY).color(theme.muted_text),
+        Text::new(format!("@{login}"))
+            .size(11.0)
+            .font(fonts::BODY)
+            .color(theme.muted_text),
         Text::new("Used by the lock screen")
             .size(11.0)
             .font(fonts::BODY)
@@ -102,9 +105,13 @@ fn profile(page: &Page) -> Rectangle {
         .align_child(Start, Center)
         .child(labels);
 
-    let row = Row::new(children![avatar(&profile, page), labels, Row::new(buttons).gap(8.0)])
-        .gap(16.0)
-        .align(Center);
+    let row = Row::new(children![
+        avatar(&profile, page),
+        labels,
+        Row::new(buttons).gap(8.0)
+    ])
+    .gap(16.0)
+    .align(Center);
 
     Rectangle::new()
         .width(page.width)
@@ -129,12 +136,12 @@ fn avatar(profile: &Profile, page: &Page) -> Rectangle {
         .fill(theme.selected_surface)
         .clip();
 
-    if let Some(picture) = profile.picture() {
-        if Image::loaded(picture) {
-            let pixels = AVATAR as u32 * 2;
+    if let Some(picture) = profile.picture()
+        && Image::loaded(picture)
+    {
+        let pixels = AVATAR as u32 * 2;
 
-            return circle.fill(Image::cover(picture).thumbnail(pixels, pixels));
-        }
+        return circle.fill(Image::cover(picture).thumbnail(pixels, pixels));
     }
 
     circle.align_child(Center, Center).child(

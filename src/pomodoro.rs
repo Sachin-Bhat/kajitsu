@@ -1,6 +1,7 @@
 mod ring;
 
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use amane::{
@@ -40,8 +41,32 @@ pub const PLAY_ICON: &str = "\u{f040a}";
 pub const PAUSE_ICON: &str = "\u{f03e4}";
 const RESET_ICON: &str = "\u{f0453}";
 
-const SOUND: &str =
-    "/run/current-system/sw/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga";
+fn alarm_sound(data_dirs: impl IntoIterator<Item = PathBuf>) -> Option<PathBuf> {
+    data_dirs
+        .into_iter()
+        .map(|directory| directory.join("sounds/freedesktop/stereo/alarm-clock-elapsed.oga"))
+        .find(|path| path.is_file())
+}
+
+fn play_alarm() {
+    let user_data = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")));
+    let system_data = std::env::var_os("XDG_DATA_DIRS")
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "/usr/local/share:/usr/share".into());
+    let directories = user_data
+        .into_iter()
+        .chain(std::env::split_paths(&system_data).filter(|path| path.is_absolute()));
+    if let Some(path) = alarm_sound(directories) {
+        if let Err(error) = std::process::Command::new("pw-play").arg(path).spawn() {
+            eprintln!("kajitsu: cannot play timer alarm: {error}");
+        }
+    } else {
+        eprintln!("kajitsu: timer alarm missing; install the freedesktop sound theme");
+    }
+}
 
 #[derive(Clone, Copy, PartialEq)]
 enum Mode {
@@ -128,7 +153,7 @@ impl Timer {
         };
 
         amane::spawn(&format!("notify-send -a Pomodoro Pomodoro '{message}'"));
-        amane::spawn(&format!("pw-play {SOUND}"));
+        play_alarm();
 
         let next = match self.mode {
             Mode::Focus => {
@@ -504,4 +529,33 @@ fn morph(index: usize, radius: f32) -> f32 {
 
         morphs[index].value()
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn alarm_uses_first_installed_sound_in_data_search_path() {
+        let root = std::env::temp_dir().join(format!("kajitsu-sound-{}", std::process::id()));
+        let first = root.join("user");
+        let second = root.join("system");
+        let relative = "sounds/freedesktop/stereo/alarm-clock-elapsed.oga";
+        for directory in [&first, &second] {
+            std::fs::create_dir_all(directory.join("sounds/freedesktop/stereo")).unwrap();
+            std::fs::write(directory.join(relative), "fixture").unwrap();
+        }
+        assert_eq!(
+            alarm_sound([first.clone(), second.clone()]),
+            Some(first.join(relative))
+        );
+        std::fs::remove_file(first.join(relative)).unwrap();
+        assert_eq!(
+            alarm_sound([first, second.clone()]),
+            Some(second.join(relative))
+        );
+        std::fs::remove_file(second.join(relative)).unwrap();
+        assert_eq!(alarm_sound([second]), None);
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }

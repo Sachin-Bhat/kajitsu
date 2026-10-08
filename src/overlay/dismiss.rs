@@ -20,20 +20,28 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
 
     let catching = open && Settings::read().flag("click_outside_dismiss");
 
-    LayerWindow::new()
+    // Keep this role below the always-mapped panel role across hide/reopen.
+    // Recreating it would put its full-screen input above the panels.
+    let window = LayerWindow::new()
         .width(Full)
         .height(Full)
         .layer(Layer::Overlay)
         .space(Zone::Respect)
-        .namespace("dismiss")
-        .visible(catching)
-        .child(
-            Rectangle::new()
-                .width(Parent)
-                .height(Parent)
-                .fill(Color::TRANSPARENT)
-                .on_click(|_| close_all()),
-        )
+        .namespace("dismiss");
+
+    let window = if catching {
+        window
+    } else {
+        window.click_through()
+    };
+
+    window.child(
+        Rectangle::new()
+            .width(Parent)
+            .height(Parent)
+            .fill(Color::TRANSPARENT)
+            .on_click(|_| close_all()),
+    )
 }
 
 fn close_all() {

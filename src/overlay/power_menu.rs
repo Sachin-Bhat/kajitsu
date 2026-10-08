@@ -1,6 +1,6 @@
 use amane::{
-    Button, Center, Color, Column, Padding, Pointer, Rectangle, Row, Service, Stack, Start, Text,
-    Weight, Widget, children,
+    Argument, Bus, Button, Center, Color, Column, Padding, Pointer, Rectangle, Row, Service, Stack,
+    Start, Text, Weight, Widget, children,
 };
 
 use super::{Overlay, PanelView, Region};
@@ -47,7 +47,7 @@ const ACTIONS: [Action; ACTION_COUNT] = [
     Action {
         label: "Shutdown",
         icon: "\u{23fb}",
-        command: "systemctl poweroff",
+        command: "PowerOff",
         danger: true,
     },
     Action {
@@ -59,13 +59,13 @@ const ACTIONS: [Action; ACTION_COUNT] = [
     Action {
         label: "Restart",
         icon: "\u{f0709}",
-        command: "systemctl reboot",
+        command: "Reboot",
         danger: false,
     },
     Action {
         label: "Sleep",
         icon: "\u{f04b2}",
-        command: "systemctl suspend",
+        command: "Suspend",
         danger: false,
     },
     Action {
@@ -233,6 +233,18 @@ fn run(command: &str) {
                     .args(["-a", "Kajitsu", "Logout failed", &error])
                     .spawn();
             }
+        });
+    } else if matches!(command, "PowerOff" | "Reboot" | "Suspend") {
+        // Both systemd-logind and elogind expose this interface.
+        let method = String::from(command);
+        std::thread::spawn(move || {
+            Bus::system().call(
+                "org.freedesktop.login1",
+                "/org/freedesktop/login1",
+                "org.freedesktop.login1.Manager",
+                &method,
+                &[Argument::from(true)],
+            );
         });
     } else {
         amane::spawn(command);

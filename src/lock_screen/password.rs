@@ -76,12 +76,12 @@ fn avatar(profile: &Profile) -> Rectangle {
         .fill(Color::rgba(0, 0, 0, 0x4d))
         .clip();
 
-    if let Some(picture) = profile.picture() {
-        if Image::loaded(picture) {
-            let pixels = AVATAR as u32 * 2;
+    if let Some(picture) = profile.picture()
+        && Image::loaded(picture)
+    {
+        let pixels = AVATAR as u32 * 2;
 
-            return circle.fill(Image::cover(picture).thumbnail(pixels, pixels));
-        }
+        return circle.fill(Image::cover(picture).thumbnail(pixels, pixels));
     }
 
     circle.align_child(Center, Center).child(

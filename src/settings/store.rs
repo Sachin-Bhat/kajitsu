@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::env;
 use std::fs;
 use std::path::PathBuf;
 
@@ -80,11 +79,11 @@ const DEFAULTS: [(&str, &str); 70] = [
     ("weather_minutes", "15"),
     // integrations
     ("integration_gtk", "false"),
-    ("integration_terminal", "false"),
+    ("integration_wezterm", "false"),
     ("integration_tmux", "false"),
     ("integration_vesktop", "false"),
     ("integration_spotify", "false"),
-    ("integration_btop", "false"),
+    ("integration_bottom", "false"),
     ("integration_cava", "false"),
 ];
 
@@ -107,33 +106,6 @@ impl Service for Settings {
         }
 
         let saved = fs::read_to_string(path()).unwrap_or_default();
-
-        // the color mode used to have a file of its own
-        let old_mode = fs::read_to_string(old_file("mode")).unwrap_or_default();
-
-        if let Some(slot) = values.get_mut("color_mode") {
-            if matches!(old_mode.trim(), "light" | "dark") {
-                *slot = String::from(old_mode.trim());
-            }
-        }
-
-        // so did the weather's location, as lines like "latitude=6.18"
-        let old_weather = fs::read_to_string(old_file("weather")).unwrap_or_default();
-
-        for line in old_weather.lines() {
-            let Some((name, value)) = line.split_once('=') else {
-                continue;
-            };
-
-            let key = match name.trim() {
-                "name" => "weather_place",
-                "latitude" => "weather_latitude",
-                "longitude" => "weather_longitude",
-                _ => continue,
-            };
-
-            values.insert(String::from(key), String::from(value.trim()));
-        }
 
         // keys that are no longer settings are dropped
         for line in saved.lines() {
@@ -159,7 +131,9 @@ impl Service for Settings {
 impl Settings {
     // what the shell uses
     pub fn text(&self, key: &str) -> &str {
-        self.values.get(key).expect("failed to find setting: unknown key")
+        self.values
+            .get(key)
+            .expect("failed to find setting: unknown key")
     }
 
     pub fn flag(&self, key: &str) -> bool {
@@ -173,7 +147,9 @@ impl Settings {
 
     // what the settings window shows, applied or not
     pub fn staged(&self, key: &str) -> &str {
-        self.draft.get(key).expect("failed to find setting: unknown key")
+        self.draft
+            .get(key)
+            .expect("failed to find setting: unknown key")
     }
 
     pub fn staged_flag(&self, key: &str) -> bool {
@@ -193,7 +169,10 @@ impl Settings {
     pub fn stage(key: &str, value: impl ToString) {
         let mut settings = Self::write();
 
-        let slot = settings.draft.get_mut(key).expect("failed to find setting: unknown key");
+        let slot = settings
+            .draft
+            .get_mut(key)
+            .expect("failed to find setting: unknown key");
 
         *slot = value.to_string();
     }
@@ -209,7 +188,9 @@ impl Settings {
         let mut settings = Self::write();
 
         for (key, value) in DEFAULTS {
-            settings.draft.insert(String::from(key), String::from(value));
+            settings
+                .draft
+                .insert(String::from(key), String::from(value));
         }
     }
 
@@ -257,15 +238,6 @@ impl Settings {
     }
 }
 
-// where a setting lived before it moved in here
-fn old_file(name: &str) -> PathBuf {
-    let home = env::var("HOME").expect("failed to find home: HOME is not set");
-
-    PathBuf::from(format!("{home}/.local/state/amane/{name}"))
-}
-
 fn path() -> PathBuf {
-    let home = env::var("HOME").expect("failed to find home: HOME is not set");
-
-    PathBuf::from(format!("{home}/.local/state/amane/settings"))
+    crate::paths::state_dir().join("settings")
 }

@@ -1,4 +1,3 @@
-use std::env;
 use std::fs;
 use std::hash::{BuildHasher, RandomState};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -9,9 +8,6 @@ use amane::{Image, Palette, Service};
 
 use crate::motion::{self, Glide};
 use crate::settings::Settings;
-
-// the wallpaper picker writes the chosen file here
-const SELECTION: &str = ".local/state/amane/wallpaper-selection";
 
 const PALETTE_SIZE: usize = 16;
 
@@ -74,6 +70,8 @@ impl Service for Wallpaper {
     }
 
     fn listen() {
+        // Ensure a fresh XDG state directory exists before watching its parent.
+        let _ = fs::create_dir_all(crate::paths::state_dir());
         // made first, so a choice made during the intro is still seen
         let changes = amane::watch_file(&selection_file());
 
@@ -167,9 +165,10 @@ pub fn random_share() -> f32 {
 }
 
 fn selection_file() -> String {
-    let home = env::var("HOME").expect("failed to find home: HOME is not set");
-
-    format!("{home}/{SELECTION}")
+    crate::paths::state_dir()
+        .join("wallpaper-selection")
+        .to_string_lossy()
+        .into_owned()
 }
 
 // the file holds a url like file:///home/me/Pictures/wall.png
@@ -187,5 +186,6 @@ fn read_selection() -> String {
 pub fn choose(path: &str) {
     let url = format!("file://{path}");
 
+    let _ = fs::create_dir_all(crate::paths::state_dir());
     fs::write(selection_file(), url).expect("failed to write wallpaper selection");
 }

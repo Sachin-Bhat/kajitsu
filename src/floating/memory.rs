@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
@@ -23,8 +22,7 @@ const NAMES: [Name; 8] = [
  * where the cards last settled on each monitor, so a new start puts them
  * there at once instead of waiting for the wallpaper to be read again
  */
-static REMEMBERED: LazyLock<Mutex<HashMap<String, Spots>>> =
-    LazyLock::new(|| Mutex::new(load()));
+static REMEMBERED: LazyLock<Mutex<HashMap<String, Spots>>> = LazyLock::new(|| Mutex::new(load()));
 
 // the spots for these cards, when every one of them was remembered
 pub fn recall(monitor: &str, names: &[Name]) -> Option<Spots> {
@@ -69,7 +67,10 @@ fn load() -> HashMap<String, Spots> {
             continue;
         };
 
-        let Some(name) = NAMES.into_iter().find(|known| format!("{known:?}") == *name) else {
+        let Some(name) = NAMES
+            .into_iter()
+            .find(|known| format!("{known:?}") == *name)
+        else {
             continue;
         };
 
@@ -77,7 +78,10 @@ fn load() -> HashMap<String, Spots> {
             continue;
         };
 
-        remembered.entry(String::from(*monitor)).or_default().insert(name, (x, y));
+        remembered
+            .entry(String::from(*monitor))
+            .or_default()
+            .insert(name, (x, y));
     }
 
     remembered
@@ -102,7 +106,5 @@ fn save(remembered: &HashMap<String, Spots>) {
 }
 
 fn path() -> PathBuf {
-    let home = env::var("HOME").expect("failed to find home: HOME is not set");
-
-    PathBuf::from(format!("{home}/.local/state/amane/floating"))
+    crate::paths::state_dir().join("floating")
 }

@@ -42,13 +42,22 @@ pub fn view(monitor: &Monitor, theme: &Theme, width: f32) -> Row {
         .cursor(Pointer)
         .on_click(|_| Overlay::toggle_power_menu())
         .align_child(Center, Center)
-        .child(Text::new(LOGO).size(28.0).font(fonts::NERD).color(theme.accent));
+        .child(
+            Text::new(LOGO)
+                .size(28.0)
+                .font(fonts::NERD)
+                .color(theme.accent),
+        );
 
-    let name = Text::new(active_name(&own))
-        .size(14.0)
-        .font(fonts::BODY)
-        .weight(Weight::Medium)
-        .color(theme.text);
+    let name = Text::new(crate::mango::active_label(&crate::mango::tag_states(
+        workspaces.list(),
+        &monitor.name,
+    )))
+    .size(14.0)
+    .font(fonts::BODY)
+    .weight(Weight::Medium)
+    .color(theme.text)
+    .elide();
 
     let settings = Settings::read();
 
@@ -59,7 +68,12 @@ pub fn view(monitor: &Monitor, theme: &Theme, width: f32) -> Row {
     }
 
     if settings.flag("bar_workspaces") {
-        items.push(Box::new(strip(monitor, &own, theme, settings.text("workspace_style"))));
+        items.push(Box::new(strip(
+            monitor,
+            &own,
+            theme,
+            settings.text("workspace_style"),
+        )));
     }
 
     if settings.flag("bar_workspace_name") {
@@ -78,14 +92,16 @@ pub fn view(monitor: &Monitor, theme: &Theme, width: f32) -> Row {
 fn strip(monitor: &Monitor, workspaces: &[&Workspace], theme: &Theme, style: &str) -> Rectangle {
     let mut slots: Vec<Box<dyn Widget>> = Vec::new();
 
-    let mut active = 0;
-
-    for (position, workspace) in workspaces.iter().enumerate() {
-        if workspace.active() {
-            active = position;
-        }
-
-        slots.push(Box::new(slot(workspace, theme, style)));
+    let selected: Vec<_> = workspaces
+        .iter()
+        .enumerate()
+        .filter(|(_, w)| w.active())
+        .map(|(index, _)| index)
+        .collect();
+    let single = selected.len() == 1;
+    let active = selected.first().copied().unwrap_or(0);
+    for workspace in workspaces {
+        slots.push(Box::new(slot(workspace, theme, style, single)));
     }
 
     let count = workspaces.len() as f32;
@@ -100,10 +116,16 @@ fn strip(monitor: &Monitor, workspaces: &[&Workspace], theme: &Theme, style: &st
         .width(SLOT)
         .height(SLOT)
         .radius(Full)
-        .fill(theme.accent)
+        .fill(if workspaces.get(active).is_some_and(|w| w.urgent()) {
+            theme.danger
+        } else {
+            theme.accent
+        })
         .translate(offset, 0.0);
 
-    let active_index = workspaces.get(active).map_or(1, |workspace| workspace.index() as usize);
+    let active_index = workspaces
+        .get(active)
+        .map_or(1, |workspace| workspace.index() as usize);
 
     // the pill style spins a star in the highlight, numbers repeat the active one
     let highlight: Box<dyn Widget> = match style {
@@ -117,7 +139,12 @@ fn strip(monitor: &Monitor, workspaces: &[&Workspace], theme: &Theme, style: &st
     };
 
     // the highlight slides over the dots, which stay where they are
-    let layers = Stack::new(vec![Box::new(Row::new(slots).gap(SLOT_GAP).align(Center)), highlight]);
+    let mut layers: Vec<Box<dyn Widget>> =
+        vec![Box::new(Row::new(slots).gap(SLOT_GAP).align(Center))];
+    if single {
+        layers.push(highlight);
+    }
+    let layers = Stack::new(layers);
 
     Rectangle::new()
         .width(content + STRIP_PADDING * 2.0)
@@ -129,13 +156,15 @@ fn strip(monitor: &Monitor, workspaces: &[&Workspace], theme: &Theme, style: &st
 }
 
 // a small dot or its number, the highlight covers the active one
-fn slot(workspace: &Workspace, theme: &Theme, style: &str) -> Rectangle {
+fn slot(workspace: &Workspace, theme: &Theme, style: &str, single: bool) -> Rectangle {
     let id = workspace.id();
 
     let color = if workspace.urgent() {
         theme.danger
-    } else if workspace.active() {
+    } else if workspace.active() && single {
         Color::TRANSPARENT
+    } else if workspace.active() {
+        theme.on_accent
     } else {
         theme.muted_text
     };
@@ -143,12 +172,21 @@ fn slot(workspace: &Workspace, theme: &Theme, style: &str) -> Rectangle {
     let mark = if style == "numbers" {
         number(workspace.index() as usize, color)
     } else {
-        Text::new(INACTIVE).size(11.0).font(fonts::SYMBOLS).color(color)
+        Text::new(INACTIVE)
+            .size(11.0)
+            .font(fonts::SYMBOLS)
+            .color(color)
     };
 
     Rectangle::new()
         .width(SLOT)
         .height(SLOT)
+        .radius(Full)
+        .fill(if workspace.active() && !single {
+            theme.accent
+        } else {
+            Color::TRANSPARENT
+        })
         .cursor(Pointer)
         .on_click(move |_| Workspaces::focus(id))
         .align_child(Center, Center)
@@ -162,22 +200,4 @@ fn number(index: usize, color: Color) -> Text {
         .weight(Weight::Bold)
         .tight()
         .color(color)
-}
-
-// the workspace's own name, or "Workspace 2" when it has none
-fn active_name(workspaces: &[&Workspace]) -> String {
-    for workspace in workspaces {
-        if !workspace.active() {
-            continue;
-        }
-
-        let index = workspace.index().to_string();
-
-        return match workspace.name() {
-            Some(name) if !name.is_empty() && name != index => String::from(name),
-            _ => format!("Workspace {index}"),
-        };
-    }
-
-    String::from("Desktop")
 }

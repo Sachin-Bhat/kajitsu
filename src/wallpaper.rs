@@ -29,7 +29,7 @@ pub const SCREEN_RADIUS: f32 = 16.0;
 const SHADOW: Color = Color::rgba(0, 0, 0, 0x50);
 const SHADOW_BLUR: f32 = 8.0;
 
-// under everything, taking no clicks; niri also shows it behind the overview
+// under everything, taking no clicks; Mango also shows it behind the overview
 pub fn view(monitor: &Monitor) -> LayerWindow {
     let theme = theme::current();
 
@@ -104,5 +104,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .space(Zone::Ignore)
         .namespace("wallpaper")
         .click_through()
-        .child(Stack::new(children![backdrop, frame, shadow, dim]).width(Parent).height(Parent))
+        .child(
+            Stack::new(children![backdrop, frame, shadow, dim])
+                .width(Parent)
+                .height(Parent),
+        )
 }

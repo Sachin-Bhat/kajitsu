@@ -1,4 +1,5 @@
 mod bar;
+mod cli;
 mod clock;
 mod converter;
 mod floating;
@@ -6,11 +7,13 @@ mod fonts;
 mod integrations;
 mod liquid;
 mod lock_screen;
+mod mango;
 mod motion;
 mod overlay;
+mod paths;
 mod pomodoro;
-mod recorder;
 mod profile;
+mod recorder;
 mod screen_mask;
 mod settings;
 mod theme;
@@ -23,6 +26,26 @@ use lock_screen::Logind;
 use wallpaper::{Shuffle, Wallpaper};
 
 fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if !args.is_empty() {
+        if let Err(error) = cli::run(&args) {
+            eprintln!("kajitsu: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if std::env::var_os("MANGO_INSTANCE_SIGNATURE").is_none() {
+        eprintln!("kajitsu: start the shell inside a Mango session");
+        std::process::exit(1);
+    }
+    if std::env::var_os("XDG_RUNTIME_DIR").is_none() {
+        eprintln!("kajitsu: XDG_RUNTIME_DIR is not set");
+        std::process::exit(1);
+    }
+    if let Err(error) = cli::prepare_socket(&amane::ipc_socket()) {
+        eprintln!("kajitsu: {error}");
+        std::process::exit(1);
+    }
     // reading it once starts the palette before the first frame
     drop(Wallpaper::read());
 

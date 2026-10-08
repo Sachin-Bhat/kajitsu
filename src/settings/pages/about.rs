@@ -11,16 +11,34 @@ static COMMIT: OnceLock<String> = OnceLock::new();
 
 pub fn build(page: &mut Page) {
     let commit = COMMIT.get_or_init(|| {
-        let commit = amane::output("git -C ~/.config/amane rev-parse --short HEAD");
+        let output = std::process::Command::new("git")
+            .arg("-C")
+            .arg(crate::paths::config_dir())
+            .args(["rev-parse", "--short", "HEAD"])
+            .output();
+        let commit = output
+            .ok()
+            .filter(|output| output.status.success())
+            .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
+            .unwrap_or_else(|| "unknown".into());
 
         String::from(commit.trim())
     });
 
-    let detail = format!("Git commit {commit}");
+    let detail = format!("Kajitsu · hard fork of Suzuha · Git commit {commit}");
 
-    action(page, "Config checkout", &detail, "Open folder", Style::Plain, || {
-        amane::spawn("xdg-open ~/.config/amane");
-    });
+    action(
+        page,
+        "Config checkout",
+        &detail,
+        "Open folder",
+        Style::Plain,
+        || {
+            let _ = std::process::Command::new("xdg-open")
+                .arg(crate::paths::config_dir())
+                .spawn();
+        },
+    );
 
     action(
         page,

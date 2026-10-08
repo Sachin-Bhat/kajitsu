@@ -1,5 +1,6 @@
 // the family names fontconfig knows
-pub const BODY: &str = "Poppins";
-pub const NERD: &str = "JetBrainsMono Nerd Font";
-pub const SYMBOLS: &str = "Symbols Nerd Font";
-pub const MATERIAL: &str = "Material Design Icons";
+pub const BODY: &str = "Inter Nerd Font Propo";
+pub const NERD: &str = "GeistMono Nerd Font Mono";
+// Both glyph roles are covered by the primary Nerd family.
+pub const SYMBOLS: &str = NERD;
+pub const MATERIAL: &str = NERD;

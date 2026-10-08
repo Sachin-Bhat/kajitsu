@@ -31,19 +31,29 @@ const CHECK: &str = "󰄬";
 
 // a header like the other pages, the sound modes as cards, and the record button at the bottom
 pub fn view(overlay: &Overlay, theme: &Theme, width: f32, height: f32) -> Column {
-    let chosen = Recorder::read().audio;
+    let recorder = Recorder::read();
+    let chosen = recorder.audio;
+    let starting = recorder.starting();
+    let status = recorder.elapsed();
+    let error = recorder.error.clone();
+    drop(recorder);
 
-    let status = recorder::status();
-
-    let title = title(theme, status.as_deref(), width);
+    let title = title(theme, status.as_deref(), error.as_deref(), starting, width);
 
     // the sound can't change mid-recording, so the cards stop taking clicks then
-    let locked = status.is_some();
+    let locked = starting || status.is_some();
 
     let mut cards: Vec<Box<dyn Widget>> = Vec::new();
 
     for audio in AUDIO {
-        cards.push(Box::new(card(overlay, theme, audio, audio == chosen, locked, width)));
+        cards.push(Box::new(card(
+            overlay,
+            theme,
+            audio,
+            audio == chosen,
+            locked,
+            width,
+        )));
     }
 
     let count = AUDIO.len() as f32;
@@ -58,14 +68,34 @@ pub fn view(overlay: &Overlay, theme: &Theme, width: f32, height: f32) -> Column
         .height((height - header::HEIGHT - BUTTON_HEIGHT - GAP * 2.0).max(0.0))
         .child(ScrollArea::new(LIST, column));
 
-    Column::new(children![title, area, button(overlay, theme, status, width)]).gap(GAP)
+    Column::new(children![
+        title,
+        area,
+        button(overlay, theme, status, starting, width)
+    ])
+    .gap(GAP)
 }
 
 // header.rs's look, without its switch since the button below starts and stops
-fn title(theme: &Theme, status: Option<&str>, width: f32) -> Rectangle {
-    let (icon_fill, text, color) = match status {
-        Some(time) => (theme.danger, format!("Recording · {time}"), theme.danger),
-        None => (theme.accent, String::from("Ready · saves to ~/Videos"), theme.muted_text),
+fn title(
+    theme: &Theme,
+    status: Option<&str>,
+    error: Option<&str>,
+    starting: bool,
+    width: f32,
+) -> Rectangle {
+    let (icon_fill, text, color) = if starting {
+        (theme.accent, String::from("Starting…"), theme.muted_text)
+    } else {
+        match (status, error) {
+            (Some(time), _) => (theme.danger, format!("Recording · {time}"), theme.danger),
+            (None, Some(error)) => (theme.danger, error.to_owned(), theme.danger),
+            (None, None) => (
+                theme.accent,
+                String::from("Ready · saves to ~/Videos"),
+                theme.muted_text,
+            ),
+        }
     };
 
     let icon = Rectangle::new()
@@ -74,7 +104,13 @@ fn title(theme: &Theme, status: Option<&str>, width: f32) -> Rectangle {
         .radius(12.0)
         .fill(icon_fill)
         .align_child(Center, Center)
-        .child(Text::new(RECORD_ICON).size(18.0).font(fonts::NERD).tight().color(theme.on_accent));
+        .child(
+            Text::new(RECORD_ICON)
+                .size(18.0)
+                .font(fonts::NERD)
+                .tight()
+                .color(theme.on_accent),
+        );
 
     let text_width = width - HEADER_PADDING * 3.0 - HEADER_ICON_SIZE;
 
@@ -84,10 +120,13 @@ fn title(theme: &Theme, status: Option<&str>, width: f32) -> Rectangle {
         .weight(Weight::SemiBold)
         .color(theme.text);
 
-    let status = Rectangle::new()
-        .width(text_width)
-        .height(16.0)
-        .child(Text::new(text).size(10.0).font(fonts::BODY).color(color).elide());
+    let status = Rectangle::new().width(text_width).height(16.0).child(
+        Text::new(text)
+            .size(10.0)
+            .font(fonts::BODY)
+            .color(color)
+            .elide(),
+    );
 
     let text = Rectangle::new()
         .width(text_width)
@@ -106,11 +145,22 @@ fn title(theme: &Theme, status: Option<&str>, width: f32) -> Rectangle {
             bottom: HEADER_PADDING,
             left: HEADER_PADDING,
         })
-        .child(Row::new(children![icon, text]).gap(HEADER_PADDING).align(Center))
+        .child(
+            Row::new(children![icon, text])
+                .gap(HEADER_PADDING)
+                .align(Center),
+        )
 }
 
 // one sound mode, tinted with a check when chosen
-fn card(overlay: &Overlay, theme: &Theme, audio: Audio, selected: bool, locked: bool, width: f32) -> Rectangle {
+fn card(
+    overlay: &Overlay,
+    theme: &Theme,
+    audio: Audio,
+    selected: bool,
+    locked: bool,
+    width: f32,
+) -> Rectangle {
     let hover_name = format!("record:audio:{}", audio.label());
 
     let fill = if selected {
@@ -127,9 +177,19 @@ fn card(overlay: &Overlay, theme: &Theme, audio: Audio, selected: bool, locked: 
         .radius(8.0)
         .fill(theme.selected_surface)
         .align_child(Center, Center)
-        .child(Text::new(audio.icon()).size(16.0).font(fonts::NERD).tight().color(theme.accent));
+        .child(
+            Text::new(audio.icon())
+                .size(16.0)
+                .font(fonts::NERD)
+                .tight()
+                .color(theme.accent),
+        );
 
-    let weight = if selected { Weight::SemiBold } else { Weight::Regular };
+    let weight = if selected {
+        Weight::SemiBold
+    } else {
+        Weight::Regular
+    };
 
     let text_width = width - CARD_PADDING * 4.0 - ICON_SIZE - 16.0;
 
@@ -137,11 +197,21 @@ fn card(overlay: &Overlay, theme: &Theme, audio: Audio, selected: bool, locked: 
         .width(text_width)
         .height(ICON_SIZE)
         .align_child(Start, Center)
-        .child(Text::new(audio.label()).size(12.0).font(fonts::BODY).weight(weight).color(theme.text));
+        .child(
+            Text::new(audio.label())
+                .size(12.0)
+                .font(fonts::BODY)
+                .weight(weight)
+                .color(theme.text),
+        );
 
     let check = if selected { CHECK } else { "" };
 
-    let check = Text::new(check).size(14.0).font(fonts::NERD).tight().color(theme.accent);
+    let check = Text::new(check)
+        .size(14.0)
+        .font(fonts::NERD)
+        .tight()
+        .color(theme.accent);
 
     let card = Rectangle::new()
         .width(width)
@@ -154,7 +224,11 @@ fn card(overlay: &Overlay, theme: &Theme, audio: Audio, selected: bool, locked: 
             bottom: CARD_PADDING,
             left: CARD_PADDING,
         })
-        .child(Row::new(children![icon, name, check]).gap(CARD_PADDING).align(Center));
+        .child(
+            Row::new(children![icon, name, check])
+                .gap(CARD_PADDING)
+                .align(Center),
+        );
 
     // the other modes fade back while recording
     if locked {
@@ -163,16 +237,26 @@ fn card(overlay: &Overlay, theme: &Theme, audio: Audio, selected: bool, locked: 
 
     card.cursor(Pointer)
         .on_hover(move |inside| hover(hover_name.clone(), inside))
-        .on_click(move |_| Recorder::write().audio = audio)
+        .on_click(move |_| Recorder::write().select_audio(audio))
 }
 
 // accent to start, red with the time to stop
-fn button(overlay: &Overlay, theme: &Theme, status: Option<String>, width: f32) -> Rectangle {
+fn button(
+    overlay: &Overlay,
+    theme: &Theme,
+    status: Option<String>,
+    starting: bool,
+    width: f32,
+) -> Rectangle {
     let hover_name = String::from("record:button");
 
-    let (icon, label, fill) = match status {
-        Some(time) => (STOP_ICON, format!("Stop · {time}"), theme.danger),
-        None => (RECORD_ICON, String::from("Start recording"), theme.accent),
+    let (icon, label, fill) = if starting {
+        (RECORD_ICON, String::from("Starting…"), theme.accent)
+    } else {
+        match status {
+            Some(time) => (STOP_ICON, format!("Stop · {time}"), theme.danger),
+            None => (RECORD_ICON, String::from("Start recording"), theme.accent),
+        }
     };
 
     let fill = if hovered(overlay, &hover_name) {
@@ -182,7 +266,11 @@ fn button(overlay: &Overlay, theme: &Theme, status: Option<String>, width: f32) 
     };
 
     let content = Row::new(children![
-        Text::new(icon).size(16.0).font(fonts::NERD).tight().color(theme.on_accent),
+        Text::new(icon)
+            .size(16.0)
+            .font(fonts::NERD)
+            .tight()
+            .color(theme.on_accent),
         Text::new(label)
             .size(13.0)
             .font(fonts::BODY)
@@ -192,14 +280,69 @@ fn button(overlay: &Overlay, theme: &Theme, status: Option<String>, width: f32) 
     .gap(8.0)
     .align(Center);
 
-    Rectangle::new()
+    let button = Rectangle::new()
         .width(width)
         .height(BUTTON_HEIGHT)
         .radius(BUTTON_HEIGHT / 2.0)
         .fill(fill)
+        .align_child(Center, Center)
+        .child(content);
+
+    if starting {
+        return button.opacity(0.5);
+    }
+
+    button
         .cursor(Pointer)
         .on_hover(move |inside| hover(hover_name.clone(), inside))
         .on_click(|_| recorder::toggle())
-        .align_child(Center, Center)
-        .child(content)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use amane::Color;
+    use std::time::Duration;
+
+    #[test]
+    fn recorder_header_renders_while_updates_contend() {
+        Recorder::write().error = None;
+        let state = Recorder::read();
+        let error = state.error.clone();
+        let (waiting, pending) = std::sync::mpsc::channel();
+        let writer = std::thread::spawn(move || {
+            waiting.send(()).unwrap();
+            drop(Recorder::write());
+        });
+        pending.recv().unwrap();
+        // Give the writer time to queue behind the retained read guard.
+        std::thread::sleep(Duration::from_millis(50));
+        let (done, finished) = std::sync::mpsc::channel();
+        let reader = std::thread::spawn(move || {
+            let theme = Theme {
+                light: false,
+                background: Color::BLACK,
+                surface: Color::BLACK,
+                hover_surface: Color::BLACK,
+                selected_surface: Color::BLACK,
+                border: Color::BLACK,
+                text: Color::WHITE,
+                secondary_text: Color::WHITE,
+                muted_text: Color::WHITE,
+                accent: Color::WHITE,
+                accent_hover: Color::WHITE,
+                on_accent: Color::BLACK,
+                success: Color::WHITE,
+                danger: Color::WHITE,
+            };
+            drop(title(&theme, None, error.as_deref(), false, 280.0));
+            done.send(()).unwrap();
+        });
+        finished
+            .recv_timeout(Duration::from_secs(5))
+            .expect("recorder header deadlocked with a queued update");
+        drop(state);
+        reader.join().unwrap();
+        writer.join().unwrap();
+    }
 }

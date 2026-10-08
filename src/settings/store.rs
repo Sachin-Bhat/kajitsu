@@ -79,7 +79,7 @@ const DEFAULTS: [(&str, &str); 70] = [
     ("weather_minutes", "15"),
     // integrations
     ("integration_gtk", "false"),
-    ("integration_terminal", "false"),
+    ("integration_wezterm", "false"),
     ("integration_tmux", "false"),
     ("integration_vesktop", "false"),
     ("integration_spotify", "false"),

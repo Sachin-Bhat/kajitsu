@@ -1,4 +1,4 @@
-use std::env;
+use std::process::Command;
 
 use amane::{Apps, Service};
 
@@ -61,10 +61,10 @@ pub fn find(query: &str, sessions: &[String]) -> Vec<Entry> {
     }
 
     // with command mode off, ">" is searched for like any other letter
-    if let Some(search) = query.strip_prefix(COMMAND_PREFIX) {
-        if Settings::read().flag("launcher_commands") {
-            return commands(&search.trim().to_lowercase());
-        }
+    if let Some(search) = query.strip_prefix(COMMAND_PREFIX)
+        && Settings::read().flag("launcher_commands")
+    {
+        return commands(&search.trim().to_lowercase());
     }
 
     apps(&query.trim().to_lowercase())
@@ -105,9 +105,24 @@ fn commands(search: &str) -> Vec<Entry> {
     let all = [
         ("Settings", "\u{f0493}", "command_settings", Kind::Settings),
         ("Color scheme", "\u{f03d8}", "command_colors", Kind::Colors),
-        ("Tmux sessions", "\u{f018d}", "command_tmux", Kind::TmuxCommand),
-        ("Wallpapers", "\u{f02e9}", "command_wallpapers", Kind::Wallpapers),
-        ("Converter", "\u{f04e1}", "command_converter", Kind::Converter),
+        (
+            "Tmux sessions",
+            "\u{f018d}",
+            "command_tmux",
+            Kind::TmuxCommand,
+        ),
+        (
+            "Wallpapers",
+            "\u{f02e9}",
+            "command_wallpapers",
+            Kind::Wallpapers,
+        ),
+        (
+            "Converter",
+            "\u{f04e1}",
+            "command_converter",
+            Kind::Converter,
+        ),
         ("Pomodoro", "\u{f13ab}", "command_pomodoro", Kind::Pomodoro),
     ];
 
@@ -170,13 +185,51 @@ pub fn read_sessions() -> Vec<String> {
     sessions
 }
 
-// false when there is no $TERMINAL to attach in
+fn tmux_command(session: &str) -> Command {
+    let mut command = Command::new("wezterm");
+    command.args(["start", "--", "tmux", "attach-session", "-t", session]);
+    command
+}
+
 pub fn attach(session: &str) -> bool {
-    let Ok(terminal) = env::var("TERMINAL") else {
-        return false;
+    tmux_command(session).spawn().is_ok()
+}
+
+pub fn launch_app(index: usize) {
+    let apps = Apps::read();
+    let Some(app) = apps.list().get(index) else {
+        return;
     };
+    if app.terminal() {
+        let _ = Command::new("wezterm")
+            .args(["start", "--", "sh", "-c", app.exec()])
+            .spawn();
+    } else {
+        app.launch();
+    }
+}
 
-    amane::spawn(&format!("{terminal} -- tmux attach-session -t '{session}'"));
-
-    true
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn tmux_session_name_remains_one_literal_argument() {
+        let command = tmux_command("a project; $(touch nope)");
+        assert_eq!(command.get_program(), "wezterm");
+        let args: Vec<_> = command
+            .get_args()
+            .map(|arg| arg.to_str().unwrap())
+            .collect();
+        assert_eq!(
+            args,
+            [
+                "start",
+                "--",
+                "tmux",
+                "attach-session",
+                "-t",
+                "a project; $(touch nope)"
+            ]
+        );
+    }
 }

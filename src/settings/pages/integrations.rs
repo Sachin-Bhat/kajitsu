@@ -12,10 +12,10 @@ const INTEGRATIONS: [(&str, &str, &str, &str); 7] = [
         "This writes generated GTK themes, changes gtk-theme, icon-theme and color-scheme through dconf, replaces ~/.config/gtk-4.0/gtk.css with a symlink, and restarts xdg-desktop-portal-gnome.",
     ),
     (
-        "integration_terminal",
-        "Terminals",
-        "Kitty and foot",
-        "This overwrites the kitty and foot palette files, reloads kitty windows, signals all running foot processes, and writes color escape sequences to their terminals.",
+        "integration_wezterm",
+        "WezTerm",
+        "Generated Lua color palette",
+        "This writes wezterm-colors.lua under Kajitsu state. The optional loader applies only colors to your existing WezTerm config.",
     ),
     (
         "integration_tmux",
@@ -59,7 +59,11 @@ pub fn build(page: &mut Page) {
                 return;
             }
 
-            Shown::write().confirm = Some(Confirm::Integration { key, title, warning });
+            Shown::write().confirm = Some(Confirm::Integration {
+                key,
+                title,
+                warning,
+            });
         });
     }
 

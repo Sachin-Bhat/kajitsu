@@ -71,7 +71,7 @@ const ACTIONS: [Action; ACTION_COUNT] = [
     Action {
         label: "Logout",
         icon: "\u{f0343}",
-        command: "niri msg action quit --skip-confirmation",
+        command: "mango-quit",
         danger: false,
     },
 ];
@@ -165,7 +165,12 @@ fn button(index: usize, action: &Action, fill: f32, last: bool, theme: &Theme) -
         .width(28.0)
         .height(BUTTON_HEIGHT)
         .align_child(Center, Center)
-        .child(Text::new(action.icon).size(20.0).font(fonts::NERD).color(icon_color));
+        .child(
+            Text::new(action.icon)
+                .size(20.0)
+                .font(fonts::NERD)
+                .color(icon_color),
+        );
 
     let label = Text::new(action.label)
         .size(14.0)
@@ -220,5 +225,16 @@ fn hover_action(index: usize, inside: bool) {
 fn run(command: &str) {
     Overlay::hide_power_menu();
 
-    amane::spawn(command);
+    if command == "mango-quit" {
+        std::thread::spawn(|| {
+            if let Err(error) = crate::mango::quit() {
+                eprintln!("kajitsu: {error}");
+                let _ = std::process::Command::new("notify-send")
+                    .args(["-a", "Kajitsu", "Logout failed", &error])
+                    .spawn();
+            }
+        });
+    } else {
+        amane::spawn(command);
+    }
 }

@@ -55,19 +55,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let width = monitor.width as f32;
     let height = monitor.height as f32 - bar::reserved();
 
-    let empty = Workspaces::read()
-        .list()
-        .iter()
-        .find(|workspace| workspace.active() && workspace.output() == Some(&monitor.name))
-        .is_some_and(|workspace| workspace.windows() == 0);
-
+    let tags = crate::mango::tag_states(Workspaces::read().list(), &monitor.name);
     let settings = Settings::read();
-
-    let wanted = match settings.text("floating_visibility") {
-        "always" => true,
-        "hidden" => false,
-        _ => empty,
-    };
+    let wanted = crate::mango::widgets_visible(settings.text("floating_visibility"), &tags);
 
     let scale = settings.number("floating_scale");
     let opacity = settings.number("floating_opacity");
@@ -97,7 +87,11 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     // the cards fade in and out, so the window stays until they are gone
     let target = if wanted && risen { 1.0 } else { 0.0 };
 
-    let shown = motion::appear(&format!("floating:{}", monitor.name), target, DEFAULT_SPATIAL);
+    let shown = motion::appear(
+        &format!("floating:{}", monitor.name),
+        target,
+        DEFAULT_SPATIAL,
+    );
 
     // the clock's text leans toward the screen edge it sits nearest, so it never floats off it
     let clock_center = spots[&Name::Clock].0 + CLOCK_WIDTH * scale / 2.0;
@@ -245,7 +239,8 @@ fn spots(
         crop: placement::crop(analysis, width, height),
     };
 
-    let spots = placement::arrange(&request).unwrap_or_else(|| corners(names, width, height, scale));
+    let spots =
+        placement::arrange(&request).unwrap_or_else(|| corners(names, width, height, scale));
 
     memory::remember(monitor, &spots);
 
@@ -275,7 +270,10 @@ fn corners(names: &[Name], width: f32, height: f32, scale: f32) -> HashMap<Name,
             Name::UvIndex | Name::Humidity | Name::AirQuality => {
                 bottom_left += card_width + GAP;
 
-                (bottom_left - card_width - GAP, height - MARGIN - card_height)
+                (
+                    bottom_left - card_width - GAP,
+                    height - MARGIN - card_height,
+                )
             }
         };
 
@@ -293,7 +291,10 @@ fn cards(theme: &Theme) -> Vec<(Name, Rectangle)> {
     let mut cards = vec![(Name::Weather, weather_card(theme, &weather))];
 
     if let Some(cpu) = sensors.cpu {
-        cards.push((Name::CpuTemperature, temperature(theme, "CPU TEMPERATURE", cpu)));
+        cards.push((
+            Name::CpuTemperature,
+            temperature(theme, "CPU TEMPERATURE", cpu),
+        ));
     }
 
     let load = Cpu::read().percent();
@@ -313,7 +314,10 @@ fn cards(theme: &Theme) -> Vec<(Name, Rectangle)> {
     ));
 
     if let Some(gpu) = sensors.gpu {
-        cards.push((Name::GpuTemperature, temperature(theme, "GPU TEMPERATURE", gpu)));
+        cards.push((
+            Name::GpuTemperature,
+            temperature(theme, "GPU TEMPERATURE", gpu),
+        ));
     }
 
     let shown = |value: Option<f32>, digits: usize| match value {
@@ -401,7 +405,6 @@ fn temperature(theme: &Theme, label: &str, degrees: u32) -> Rectangle {
 }
 
 fn weather_card(theme: &Theme, weather: &Weather) -> Rectangle {
-
     let degrees = |value: Option<f32>| match value {
         Some(value) => format!("{value:.0}°"),
         None => String::from("–"),
@@ -419,10 +422,14 @@ fn weather_card(theme: &Theme, weather: &Weather) -> Rectangle {
         .weight(Weight::Medium)
         .color(theme.text);
 
-    let range = Text::new(format!("H {}  L {}", degrees(weather.high), degrees(weather.low)))
-        .size(12.0)
-        .font(fonts::BODY)
-        .color(theme.secondary_text);
+    let range = Text::new(format!(
+        "H {}  L {}",
+        degrees(weather.high),
+        degrees(weather.low)
+    ))
+    .size(12.0)
+    .font(fonts::BODY)
+    .color(theme.secondary_text);
 
     let icon = Text::new(weather.icon())
         .size(40.0)
@@ -469,4 +476,3 @@ fn clock(theme: &Theme, on_left: bool) -> Rectangle {
         .align_child(side, End)
         .child(Column::new(children![time, date]).align(side).gap(0.0))
 }
-

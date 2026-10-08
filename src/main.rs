@@ -7,6 +7,7 @@ mod fonts;
 mod integrations;
 mod liquid;
 mod lock_screen;
+mod mango;
 mod motion;
 mod overlay;
 mod paths;

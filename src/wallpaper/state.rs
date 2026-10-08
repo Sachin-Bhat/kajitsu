@@ -70,6 +70,8 @@ impl Service for Wallpaper {
     }
 
     fn listen() {
+        // Ensure a fresh XDG state directory exists before watching its parent.
+        let _ = fs::create_dir_all(crate::paths::state_dir());
         // made first, so a choice made during the intro is still seen
         let changes = amane::watch_file(&selection_file());
 

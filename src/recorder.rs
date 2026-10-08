@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use amane::Service;
 
 // the mixed sink desktop and mic sound both loop into, for wf-recorder's one audio device
-const MIX_SINK: &str = "amane_rec";
+const MIX_SINK: &str = "kajitsu_rec";
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Audio {
@@ -58,7 +58,8 @@ pub struct Recorder {
     modules: Vec<String>,
 
     pub audio: Audio,
-
+    pub error: Option<String>,
+    starting: bool,
 }
 
 impl Service for Recorder {
@@ -69,6 +70,8 @@ impl Service for Recorder {
             stopping: false,
             modules: Vec::new(),
             audio: Audio::None,
+            error: None,
+            starting: false,
         }
     }
 
@@ -83,6 +86,9 @@ impl Service for Recorder {
         }
 
         self.child = None;
+        if !self.stopping {
+            self.error = Some("Recording failed; the output may have disappeared or wf-recorder could not capture it".into());
+        }
 
         for module in self.modules.drain(..) {
             amane::spawn(&format!("pactl unload-module {module}"));
@@ -112,26 +118,65 @@ pub fn toggle() {
         return;
     }
 
-    if recorder.audio == Audio::DesktopMic {
-        recorder.modules = mix();
+    if recorder.starting {
+        return;
     }
-
-    // ponytail: parses niri's text output for the focused monitor, use --json if that format changes
-    let script = format!(
-        "mkdir -p ~/Videos && exec wf-recorder -o \"$(niri msg focused-output | sed -n 's/.*(\\(.*\\))/\\1/p;q')\" {} -f ~/Videos/$(date +%F_%H-%M-%S).mp4",
-        recorder.audio.flag()
-    );
-
-    let child = Command::new("sh")
-        .args(["-c", &script])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn();
-
-    recorder.child = child.ok();
-    recorder.started = Instant::now();
-    recorder.stopping = false;
+    recorder.starting = true;
+    recorder.error = None;
+    let audio = recorder.audio;
+    drop(recorder);
+    // Mango queries and child startup run outside the service lock and UI thread.
+    std::thread::spawn(move || {
+        let mut modules = Vec::new();
+        let result = (|| -> Result<Child, String> {
+            let output = crate::mango::focused_output()?;
+            let folder =
+                std::path::PathBuf::from(std::env::var_os("HOME").ok_or("HOME is not set")?)
+                    .join("Videos");
+            std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+            let stamp = Command::new("date")
+                .arg("+%F_%H-%M-%S-%N")
+                .output()
+                .map_err(|e| e.to_string())?;
+            let file = folder.join(format!(
+                "{}.mp4",
+                String::from_utf8_lossy(&stamp.stdout).trim()
+            ));
+            if audio == Audio::DesktopMic {
+                modules = mix();
+            }
+            let mut command = Command::new("wf-recorder");
+            command.arg("-o").arg(output).arg("-f").arg(file);
+            let flag = audio.flag();
+            if !flag.is_empty() {
+                command.arg(flag);
+            }
+            command
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .map_err(|e| format!("Cannot start wf-recorder: {e}"))
+        })();
+        let mut recorder = Recorder::write();
+        recorder.starting = false;
+        match result {
+            Ok(child) => {
+                recorder.child = Some(child);
+                recorder.modules = modules;
+                recorder.started = Instant::now();
+                recorder.stopping = false;
+            }
+            Err(error) => {
+                for module in modules {
+                    let _ = Command::new("pactl")
+                        .args(["unload-module", &module])
+                        .spawn();
+                }
+                recorder.error = Some(error);
+            }
+        }
+    });
 }
 
 // ponytail: pactl loopback mix, switch to gpu-screen-recorder if the two sources drift apart
@@ -148,7 +193,10 @@ fn mix() -> Vec<String> {
     let mut modules = Vec::new();
 
     for arguments in loads {
-        let output = Command::new("pactl").arg("load-module").args(arguments).output();
+        let output = Command::new("pactl")
+            .arg("load-module")
+            .args(arguments)
+            .output();
 
         if let Ok(output) = output
             && output.status.success()

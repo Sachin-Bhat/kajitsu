@@ -163,7 +163,10 @@ pub fn random_share() -> f32 {
 }
 
 fn selection_file() -> String {
-    crate::paths::state_dir().join("wallpaper-selection").to_string_lossy().into_owned()
+    crate::paths::state_dir()
+        .join("wallpaper-selection")
+        .to_string_lossy()
+        .into_owned()
 }
 
 // the file holds a url like file:///home/me/Pictures/wall.png

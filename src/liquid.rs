@@ -1,4 +1,3 @@
-
 use amane::{Color, Parent, Rectangle, Stack, Widget};
 
 // the shader has room for this many blobs
@@ -64,7 +63,10 @@ impl Blob {
  * placed in screen coordinates
  */
 pub fn view(color: Color, blobs: Vec<Blob>, placement: Placement) -> Stack {
-    assert!(blobs.len() <= MAX_BLOBS, "the liquid holds at most {MAX_BLOBS} blobs");
+    assert!(
+        blobs.len() <= MAX_BLOBS,
+        "the liquid holds at most {MAX_BLOBS} blobs"
+    );
 
     let surface = Rectangle::new()
         .width(Parent)
@@ -138,5 +140,8 @@ fn values(color: Color, blobs: &[Blob], placement: &Placement) -> Vec<[f32; 4]> 
 
 // the shader lives next to the config's src folder
 fn shader_path() -> String {
-    crate::paths::config_dir().join("shaders/liquid.wgsl").to_string_lossy().into_owned()
+    crate::paths::config_dir()
+        .join("shaders/liquid.wgsl")
+        .to_string_lossy()
+        .into_owned()
 }

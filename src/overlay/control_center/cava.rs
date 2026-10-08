@@ -90,5 +90,8 @@ fn parse(line: &str) -> [f32; BARS] {
 
 // the config sits next to the config's src folder
 fn config_path() -> String {
-    crate::paths::config_dir().join("cava.conf").to_string_lossy().into_owned()
+    crate::paths::config_dir()
+        .join("cava.conf")
+        .to_string_lossy()
+        .into_owned()
 }

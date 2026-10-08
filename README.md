@@ -1,11 +1,11 @@
 <div align="center">
-  <h1>suzuha</h1>
-  <p><strong>My amane config.</strong><br>
-  An opinionated Wayland desktop shell written in Rust with amane, built for Niri.</p>
+  <h1>kajitsu</h1>
+  <p><strong>A hard fork of suzuha.</strong><br>
+  A personal Wayland desktop shell written in Rust with amane, being adapted for my daily-driver compositor, Mango.</p>
 
   <p>
     <img alt="amane 0.1" src="https://img.shields.io/badge/AMANE-0.1-89b4fa?style=flat-square&labelColor=181825">
-    <img alt="Niri" src="https://img.shields.io/badge/COMPOSITOR-NIRI-89b4fa?style=flat-square&labelColor=181825">
+    <img alt="Target compositor: Mango" src="https://img.shields.io/badge/TARGET_COMPOSITOR-MANGO-89b4fa?style=flat-square&labelColor=181825">
     <img alt="Rust" src="https://img.shields.io/badge/LANGUAGE-RUST-89b4fa?style=flat-square&labelColor=181825">
   </p>
 </div>
@@ -16,7 +16,11 @@ need to record again. soon.
 
 ## Overview
 
-suzuha is my personal amane configuration: a full desktop shell in Rust rather than a pile of separate widgets. It started as a rewrite of my [JAQC-shell](https://github.com/MystiaFin/shell) Quickshell config, so the two look and feel pretty much the same.
+Kajitsu is a **hard fork of [Suzuha](https://github.com/MystiaFin/suzuha)**, MystiaFin's personal amane configuration. Suzuha provides the original Rust desktop shell and began as a rewrite of their [JAQC-shell](https://github.com/MystiaFin/shell) Quickshell config.
+
+This fork follows its own direction: building a config for **Mango**, my daily-driver compositor. Default application integrations will be based on the programs I use, including **WezTerm** for the terminal and **bottom** for system monitoring. Font choices and requirements will also be tailored to my setup, rather than retaining Suzuha's defaults.
+
+The Mango migration, WezTerm and bottom integrations, and font changes are planned work. The current code still contains Suzuha's Niri-specific behavior, kitty/foot and btop integrations, and original font requirements; the implementation details below describe that inherited state.
 
 ### Included
 
@@ -40,7 +44,7 @@ suzuha is my personal amane configuration: a full desktop shell in Rust rather t
 Clone the repository as your amane config:
 
 ```sh
-git clone https://github.com/MystiaFin/suzuha.git ~/.config/amane
+git clone https://github.com/Sachin-Bhat/kajitsu.git ~/.config/amane
 ```
 
 Build the shell, then launch it:
@@ -52,26 +56,28 @@ amane run
 
 `amane run` only starts the compiled shell, so run `amane compile` again after pulling changes. While editing the config, `amane dev` rebuilds and restarts it on every save.
 
-Or start it with Niri:
+The inherited Niri startup configuration is:
 
 ```kdl
 spawn-at-startup "amane" "run"
 ```
 
 > [!NOTE]
-> This config is built around Niri. Some parts, like the power menu and the wallpaper sitting behind the overview, expect Niri and are not expected to work unchanged on other compositors.
+> Mango is the target compositor for Kajitsu. The current implementation still expects Niri in some places, including the power menu and the wallpaper behind the overview. Those parts need adaptation before they work on Mango.
 
 ## Dependencies
 
-### Required
+### Current inherited requirements
 
 - **amane**
-- **Niri**
+- **Niri** (current compositor dependency, pending migration to Mango)
 - **Poppins**
 - **JetBrains Mono Nerd Font**
 - **Symbols Nerd Font**
 - **Material Design Icons**
 - **curl**
+
+The fonts listed above are still used by the current code. Kajitsu will use different font requirements as it is adapted to my setup; replacement families have not been selected here yet.
 
 ### Optional
 
@@ -94,7 +100,7 @@ These are only needed for their corresponding features:
 
 ## IPC
 
-Everything is driven through `amane ipc call`, so it is easy to bind in Niri:
+Everything is driven through `amane ipc call`. The inherited examples below use Niri's binding syntax; Mango bindings will need to invoke the same commands using its own configuration syntax:
 
 ```kdl
 Mod+Space { spawn "amane" "ipc" "call" "launcher" "toggle"; }
@@ -156,7 +162,7 @@ The wallpaper can also drive the shell's dynamic palette. Wallpaper transitions,
 
 ## Lock screen
 
-suzuha includes a Wayland session lock that listens to logind, so anything that asks logind to lock (`loginctl lock-session`, an idle daemon, closing the lid) brings it up. It reuses the active wallpaper and palette, and slides the password field up once you start typing.
+Kajitsu inherits Suzuha's Wayland session lock that listens to logind, so anything that asks logind to lock (`loginctl lock-session`, an idle daemon, closing the lid) brings it up. It reuses the active wallpaper and palette, and slides the password field up once you start typing.
 
 Lock it from the power menu, or through IPC:
 
@@ -208,7 +214,7 @@ Settings are stored in:
 
 External theme integrations are **opt-in**. Enabling one may generate configuration files or update a running application, so the shell does not enable them automatically.
 
-Supported integrations currently include:
+Kajitsu's planned default integration targets include **WezTerm** and **bottom**, reflecting the applications I use. They are not implemented yet. The inherited integrations currently include:
 
 - GTK 3 / GTK 4
 - kitty
@@ -222,7 +228,7 @@ Supported integrations currently include:
 <details>
 <summary><strong>Generated files and side effects</strong></summary>
 
-Depending on which integrations are enabled, suzuha may write files like:
+Depending on which integrations are enabled, Kajitsu may write files like:
 
 ```text
 ~/.local/state/amane/terminal-colors-kitty.conf
@@ -276,6 +282,6 @@ src/main.rs         root configuration
 
 ## Notes
 
-This is a personal config that I daily-drive and keep changing. Expect opinions, occasional breakage, and features that exist because I wanted them on my own desktop.
+This is a personal config being built for my Mango daily-driver setup. Its defaults, app integrations, and font requirements will follow what I use. Expect opinions, occasional breakage, and features that exist because I want them on my own desktop.
 
 If you use it as a base for your own setup, reading and modifying the Rust is very much part of the experience.

@@ -1,0 +1,9 @@
+[package]
+name = "kajitsu"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+amane = { path = "../amane" }
+serde_json = "1.0"

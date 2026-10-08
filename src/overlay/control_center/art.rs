@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
-use std::env;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::{Path, PathBuf};
 
@@ -44,13 +43,11 @@ pub fn path(url: &str) -> Option<PathBuf> {
 }
 
 fn cached(url: &str) -> PathBuf {
-    let home = env::var("HOME").expect("failed to find home: HOME is not set");
-
     let mut hasher = DefaultHasher::new();
 
     url.hash(&mut hasher);
 
-    PathBuf::from(format!("{home}/.cache/amane/art/{:x}", hasher.finish()))
+    crate::paths::cache_dir().join(format!("art/{:x}", hasher.finish()))
 }
 
 // written under a temporary name and moved in once complete, so a half file is never read

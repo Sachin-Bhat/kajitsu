@@ -1,5 +1,6 @@
 mod bar;
 mod clock;
+mod cli;
 mod converter;
 mod floating;
 mod fonts;
@@ -9,6 +10,7 @@ mod lock_screen;
 mod motion;
 mod overlay;
 mod pomodoro;
+mod paths;
 mod recorder;
 mod profile;
 mod screen_mask;
@@ -23,6 +25,14 @@ use lock_screen::Logind;
 use wallpaper::{Shuffle, Wallpaper};
 
 fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if !args.is_empty() {
+        if let Err(error) = cli::run(&args) {
+            eprintln!("kajitsu: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     // reading it once starts the palette before the first frame
     drop(Wallpaper::read());
 

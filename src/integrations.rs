@@ -119,7 +119,7 @@ pub fn config_home() -> String {
 
 // where the generated files go, next to the settings
 pub fn state_home() -> String {
-    format!("{}/.local/state/amane", home())
+    crate::paths::state_dir().to_string_lossy().into_owned()
 }
 
 /*

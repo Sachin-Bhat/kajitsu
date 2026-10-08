@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
@@ -102,7 +101,5 @@ fn save(remembered: &HashMap<String, Spots>) {
 }
 
 fn path() -> PathBuf {
-    let home = env::var("HOME").expect("failed to find home: HOME is not set");
-
-    PathBuf::from(format!("{home}/.local/state/amane/floating"))
+    crate::paths::state_dir().join("floating")
 }

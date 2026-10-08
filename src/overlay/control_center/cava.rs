@@ -1,4 +1,3 @@
-use std::env;
 use std::thread;
 use std::time::Duration;
 
@@ -91,7 +90,5 @@ fn parse(line: &str) -> [f32; BARS] {
 
 // the config sits next to the config's src folder
 fn config_path() -> String {
-    let home = env::var("HOME").expect("failed to find home: HOME is not set");
-
-    format!("{home}/.config/amane/cava.conf")
+    crate::paths::config_dir().join("cava.conf").to_string_lossy().into_owned()
 }

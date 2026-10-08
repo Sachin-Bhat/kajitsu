@@ -1,11 +1,9 @@
-use super::{hex, home, write};
+use super::{hex, write};
 use crate::theme::Theme;
 
 // css variables a spicetify theme reads from the cache folder
 pub fn export(theme: &Theme) {
-    let cache = std::env::var("XDG_CACHE_HOME").unwrap_or_else(|_| format!("{}/.cache", home()));
-
-    let path = format!("{cache}/amane/spotify.css");
+    let path = crate::paths::cache_dir().join("spotify.css").to_string_lossy().into_owned();
 
     let scheme = if theme.light { "light" } else { "dark" };
 

@@ -109,7 +109,5 @@ impl Profile {
 }
 
 fn path() -> PathBuf {
-    let home = env::var("HOME").expect("failed to find home: HOME is not set");
-
-    PathBuf::from(format!("{home}/.local/state/amane/profile"))
+    crate::paths::state_dir().join("profile")
 }

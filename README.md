@@ -20,7 +20,9 @@ Kajitsu is a **hard fork of [Suzuha](https://github.com/MystiaFin/suzuha)**, Mys
 
 This fork follows its own direction: building a config for **Mango**, my daily-driver compositor. Application integration targets follow the programs I use: **WezTerm** for the terminal and **bottom** for system monitoring. UI text uses **Inter Nerd Font Propo** and icons use **GeistMono Nerd Font Mono**.
 
-The conversion uses native Mango workspace support from my local amane checkout. Per-output tags, multiple selected tags, urgency, workspace recovery, recording-output queries, and Mango logout replace the inherited compositor assumptions. See [validation status](docs/mango-validation.md) before daily-driver cutover; hardware, authentication, and recording checks remain explicit.
+The power-menu button uses the **Artix logo**. Power actions use the login1 DBus interface supported by elogind and systemd-logind.
+
+The conversion uses native Mango workspace support from my local amane checkout. Per-output tags, multiple selected tags, urgency, workspace recovery, recording-output queries, and Mango logout replace the inherited compositor assumptions. Kajitsu is installed in my daily Mango session; see [the desktop setup](docs/desktop-setup.md) for shortcuts and rollback, and [validation status](docs/mango-validation.md) for the remaining hardware, authentication, and recording checks.
 
 ### Included
 
@@ -76,6 +78,7 @@ Configuration defaults to `$XDG_CONFIG_HOME/kajitsu` (or `~/.config/kajitsu`). S
 - **GeistMono Nerd Font Mono** for monospace and icons
 - **Rust/Cargo**, a C toolchain, `pkg-config`, Wayland, libxkbcommon, fontconfig, libpulse, Vulkan/EGL development libraries, and PAM runtime
 - **curl**
+- **systemd-logind or elogind**, with a session bus and a polkit agent for session/power actions
 
 bottom inherits its font from WezTerm. The installed font files cover all 87 icon codepoints used by the shell; graphical checks are recorded separately.
 
@@ -89,7 +92,7 @@ These are only needed for their corresponding features:
 | `ffmpeg` / `ffprobe` | Image, video, and audio conversion |
 | `ImageMagick 7` | Image conversion |
 | `LibreOffice` (`soffice`) | Document conversion |
-| `pw-play` / PipeWire | Pomodoro sounds |
+| `pw-play` / PipeWire and the freedesktop sound theme | Pomodoro sounds, found through the XDG data search path |
 | `libnotify` (`notify-send`) | Pomodoro notifications |
 | `wezterm` | Terminal applications, tmux attachment, and optional palette loader |
 | `bottom` (`btm`) | Optional generated system-monitor configuration |

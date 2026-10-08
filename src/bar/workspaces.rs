@@ -10,7 +10,7 @@ use crate::settings::Settings;
 use crate::theme::Theme;
 
 // the logo and the inactive dot, the active star is drawn in star.rs
-const LOGO: &str = "\u{f1105}";
+const LOGO: &str = "\u{f31f}"; // nf-linux-artix
 const INACTIVE: &str = "\u{f444}";
 
 // every workspace is a 26px slot, 4px apart, inside a 32px pill

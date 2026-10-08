@@ -18,9 +18,9 @@ need to record again. soon.
 
 Kajitsu is a **hard fork of [Suzuha](https://github.com/MystiaFin/suzuha)**, MystiaFin's personal amane configuration. Suzuha provides the original Rust desktop shell and began as a rewrite of their [JAQC-shell](https://github.com/MystiaFin/shell) Quickshell config.
 
-This fork follows its own direction: building a config for **Mango**, my daily-driver compositor. Default application integrations will be based on the programs I use, including **WezTerm** for the terminal and **bottom** for system monitoring. Font choices and requirements will also be tailored to my setup, rather than retaining Suzuha's defaults.
+This fork follows its own direction: building a config for **Mango**, my daily-driver compositor. Application integration targets follow the programs I use: **WezTerm** for the terminal and **bottom** for system monitoring. UI text uses **Inter Nerd Font Propo** and icons use **GeistMono Nerd Font Mono**.
 
-The Mango migration, WezTerm and bottom integrations, and font changes are planned work. The current code still contains Suzuha's Niri-specific behavior, kitty/foot and btop integrations, and original font requirements; the implementation details below describe that inherited state.
+The conversion uses native Mango workspace support from my local amane checkout. Per-output tags, multiple selected tags, urgency, workspace recovery, recording-output queries, and Mango logout replace the inherited compositor assumptions. See [validation status](docs/mango-validation.md) before daily-driver cutover; hardware, authentication, and recording checks remain explicit.
 
 ### Included
 
@@ -37,7 +37,7 @@ The Mango migration, WezTerm and bottom integrations, and font changes are plann
 - Power menu
 - logind-driven Wayland lock screen
 - Built-in settings window
-- Optional theme integrations for GTK, terminals, tmux, Vesktop, Spotify, btop, and cava
+- Optional theme integrations for WezTerm, bottom, GTK, tmux, Vesktop, Spotify, and cava
 
 ## Installation
 
@@ -54,6 +54,12 @@ cargo build --release --locked
 KAJITSU_CONFIG_DIR="$PWD" ./target/release/kajitsu
 ```
 
+To make the IPC and Mango binding examples available in `PATH`:
+
+```sh
+install -Dm755 target/release/kajitsu ~/.local/bin/kajitsu
+```
+
 The tracked manifest uses `amane = { path = "../amane" }`, so changes in the local library are used on the next build. Its Mango support comes from [add-mango-workspace-support](https://github.com/Sachin-Bhat/amane/tree/add-mango-workspace-support). Cargo.lock locks external dependencies; local amane changes are deliberately not pinned. See [validation](docs/mango-validation.md) for the tested revision and remaining desktop checks.
 
 Use native Cargo commands here. The amane CLI's compile/dev workflow generates a different manifest and embedded library snapshot. No amane CLI is required to launch Kajitsu or send IPC.
@@ -66,7 +72,7 @@ Configuration defaults to `$XDG_CONFIG_HOME/kajitsu` (or `~/.config/kajitsu`). S
 
 - **Local amane source** in `~/Documents/amane`, with Mango workspace support
 - **Mango** (JSON IPC, tested against installed 0.17.5)
-- **Inter Nerd Font** for UI text
+- **Inter Nerd Font Propo** for UI text
 - **GeistMono Nerd Font Mono** for monospace and icons
 - **Rust/Cargo**, a C toolchain, `pkg-config`, Wayland, libxkbcommon, fontconfig, libpulse, Vulkan/EGL development libraries, and PAM runtime
 - **curl**
@@ -85,7 +91,8 @@ These are only needed for their corresponding features:
 | `LibreOffice` (`soffice`) | Document conversion |
 | `pw-play` / PipeWire | Pomodoro sounds |
 | `libnotify` (`notify-send`) | Pomodoro notifications |
-| `kitty` remote control | Live kitty palette updates |
+| `wezterm` | Terminal applications, tmux attachment, and optional palette loader |
+| `bottom` (`btm`) | Optional generated system-monitor configuration |
 | `dconf` | GTK theme switching |
 | `tmux` | Project launcher and generated tmux palette |
 | `xdg-desktop-portal` | Picking a profile picture |
@@ -156,7 +163,7 @@ The wallpaper can also drive the shell's dynamic palette. Wallpaper transitions,
 
 ## Lock screen
 
-Kajitsu inherits Suzuha's Wayland session lock that listens to logind, so anything that asks logind to lock (`loginctl lock-session`, an idle daemon, closing the lid) brings it up. It reuses the active wallpaper and palette, and slides the password field up once you start typing.
+Keep **rustlock** as the daily lock route until the checks in [validation](docs/mango-validation.md) pass. Kajitsu inherits Suzuha's Wayland session lock that listens to logind, so anything that asks logind to lock (`loginctl lock-session`, an idle daemon, closing the lid) brings it up. It reuses the active wallpaper and palette, and slides the password field up once you start typing.
 
 Lock it from the power menu, or through IPC:
 
@@ -167,7 +174,7 @@ kajitsu ipc call lock
 The name and profile picture shown on the lock screen can be changed under **Settings → User**; they do not change the system account used for authentication.
 
 > [!CAUTION]
-> A Wayland session lock deliberately stays locked if the locker dies. If amane crashes while the session is locked, the compositor will not reveal the desktop; recover from another TTY if necessary.
+> A Wayland session lock deliberately stays locked if the locker dies. If Kajitsu crashes while the session is locked, the compositor will not reveal the desktop; recover from another TTY if necessary.
 
 ## Pomodoro & converter
 
@@ -208,48 +215,33 @@ Settings are stored in:
 
 External theme integrations are **opt-in**. Enabling one may generate configuration files or update a running application, so the shell does not enable them automatically.
 
-Kajitsu's planned default integration targets include **WezTerm** and **bottom**, reflecting the applications I use. They are not implemented yet. The inherited integrations currently include:
+**WezTerm** and **bottom** are the primary targets. Both start disabled, as do the inherited GTK, tmux, Vesktop, Spotify/Spicetify, and cava entries.
 
-- GTK 3 / GTK 4
-- kitty
-- foot
-- tmux
-- Vesktop
-- Spotify / Spicetify
-- btop
-- cava
+For WezTerm, copy [the loader](examples/wezterm/kajitsu-colors.lua) beside your `wezterm.lua`, then apply it **after** your existing color/theme selection:
 
-<details>
-<summary><strong>Generated files and side effects</strong></summary>
-
-Depending on which integrations are enabled, Kajitsu may write files like:
-
-```text
-~/.local/state/kajitsu/terminal-colors-kitty.conf
-~/.local/state/kajitsu/terminal-colors-foot.ini
-~/.local/state/kajitsu/tmux-colors.conf
-~/.config/btop/themes/amane.theme
-~/.config/cava/themes/amane
-~/.cache/kajitsu/spotify.css
+```lua
+require('kajitsu-colors').apply(config)
 ```
 
-GTK integration also generates light and dark wallpaper-derived themes under `~/.local/share/themes/` and updates the active color-scheme preference through `dconf`.
+Enable WezTerm in Kajitsu settings. The loader watches `${XDG_STATE_HOME:-$HOME/.local/state}/kajitsu/wezterm-colors.lua` for changes and applies only colors. Missing or invalid output keeps your existing color configuration. Your fonts, opacity, key bindings, projects, and other preferences remain in your own config. Remove the loader call to restore your existing theme selection. See [WezTerm's watch-list API](https://wezterm.org/config/lua/wezterm/add_to_config_reload_watch_list.html).
 
-For tmux, add this to `~/.tmux.conf` so new sessions load the generated palette:
+For bottom, enable its integration and launch with the generated configuration:
+
+```sh
+btm --config_location "${XDG_STATE_HOME:-$HOME/.local/state}/kajitsu/bottom.toml"
+```
+
+Kajitsu copies the source `bottom/bottom.toml` under XDG config and replaces only `[styles]`. It preserves flags, layout, filters, and non-style comments. A malformed source leaves the last valid output intact. Source changes trigger regeneration even if the shell palette is unchanged. **New launches** use the new styles; running bottom instances are not recolored. Avoid `--theme`, which takes precedence over custom config colors. Remove `--config_location` to return to your original configuration. See [the example](examples/bottom/README.md) and [bottom's styling reference](https://bottom.pages.dev/stable/configuration/config-file/styling/).
+
+Other opt-in exporters write `tmux-colors.conf` under Kajitsu state, `spotify.css` under Kajitsu cache, a managed Vesktop CSS block, and `~/.config/cava/themes/amane` (an inherited theme filename). GTK creates themes and adjusts dconf/GTK CSS; it does not restart a GNOME portal service. Review each settings confirmation before enabling it.
+
+For tmux, new sessions can load the generated palette with:
 
 ```tmux
 source-file -q ~/.local/state/kajitsu/tmux-colors.conf
 ```
 
-For kitty, include the generated colors and let running windows be recolored live:
-
-```conf
-allow_remote_control socket-only
-listen_on unix:@amane-kitty
-include ~/.local/state/kajitsu/terminal-colors-kitty.conf
-```
-
-</details>
+The paths shown with `~` use default XDG directories. Exports are atomic, and failed WezTerm/bottom writes are retried without overwriting the last valid output.
 
 ## Weather
 

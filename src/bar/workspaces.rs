@@ -56,7 +56,8 @@ pub fn view(monitor: &Monitor, theme: &Theme, width: f32) -> Row {
     .size(14.0)
     .font(fonts::BODY)
     .weight(Weight::Medium)
-    .color(theme.text);
+    .color(theme.text)
+    .elide();
 
     let settings = Settings::read();
 

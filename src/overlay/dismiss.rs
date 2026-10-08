@@ -23,7 +23,7 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
     LayerWindow::new()
         .width(Full)
         .height(Full)
-        .layer(Layer::Top)
+        .layer(Layer::Overlay)
         .space(Zone::Respect)
         .namespace("dismiss")
         .visible(catching)

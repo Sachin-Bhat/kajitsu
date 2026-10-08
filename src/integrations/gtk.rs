@@ -53,7 +53,7 @@ pub fn export(theme: &Theme) {
 
     /*
      * switching away and back makes running gtk 3 apps read the rewritten
-     * css; the portal restarts last so its file dialogs pick up gtk 4's
+     * css
      */
     let script = format!(
         "dconf write {interface}/gtk-theme \"'{inactive}'\"; \
@@ -61,8 +61,7 @@ pub fn export(theme: &Theme) {
          {icon_command} \
          dconf write {interface}/color-scheme \"'{scheme}'\"; \
          sleep 0.8; mkdir -p '{gtk4}'; \
-         ln -sfn '{data}/themes/{active}/gtk-4.0/gtk.css' '{gtk4}/gtk.css' && \
-         sleep 0.2 && systemctl --user try-restart xdg-desktop-portal-gnome.service"
+         ln -sfn '{data}/themes/{active}/gtk-4.0/gtk.css' '{gtk4}/gtk.css'"
     );
 
     amane::spawn(&script);

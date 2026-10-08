@@ -34,6 +34,18 @@ fn main() {
         }
         return;
     }
+    if std::env::var_os("MANGO_INSTANCE_SIGNATURE").is_none() {
+        eprintln!("kajitsu: start the shell inside a Mango session");
+        std::process::exit(1);
+    }
+    if std::env::var_os("XDG_RUNTIME_DIR").is_none() {
+        eprintln!("kajitsu: XDG_RUNTIME_DIR is not set");
+        std::process::exit(1);
+    }
+    if let Err(error) = cli::prepare_socket(&amane::ipc_socket()) {
+        eprintln!("kajitsu: {error}");
+        std::process::exit(1);
+    }
     // reading it once starts the palette before the first frame
     drop(Wallpaper::read());
 

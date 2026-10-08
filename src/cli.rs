@@ -42,6 +42,39 @@ fn call(socket: &Path, target: &str, args: &[String]) -> Result<String, String> 
     send().map_err(|error| format!("IPC at {} failed: {error}", socket.display()))
 }
 
+// Native Cargo launches also need the stale-socket cleanup supplied by amane's CLI.
+pub fn prepare_socket(path: &Path) -> Result<(), String> {
+    use std::os::unix::fs::FileTypeExt;
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(format!("cannot inspect IPC socket: {error}")),
+    };
+    if !metadata.file_type().is_socket() {
+        return Err(format!("{} exists and is not a socket", path.display()));
+    }
+    match UnixStream::connect(path) {
+        Ok(_) => Err("a shell is already running at the amane IPC socket".into()),
+        Err(error)
+            if matches!(
+                error.kind(),
+                std::io::ErrorKind::ConnectionRefused | std::io::ErrorKind::NotFound
+            ) =>
+        {
+            std::fs::remove_file(path)
+                .or_else(|error| {
+                    if error.kind() == std::io::ErrorKind::NotFound {
+                        Ok(())
+                    } else {
+                        Err(error)
+                    }
+                })
+                .map_err(|error| format!("cannot remove stale IPC socket: {error}"))
+        }
+        Err(error) => Err(format!("cannot check existing IPC socket: {error}")),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,5 +107,31 @@ mod tests {
     fn rejects_unknown_commands_and_missing_sockets() {
         assert!(run(&["unknown".into()]).is_err());
         assert!(call(Path::new("/nonexistent/kajitsu.sock"), "launcher", &[]).is_err());
+    }
+}
+
+#[cfg(test)]
+mod socket_tests {
+    use super::*;
+    use std::os::unix::net::UnixListener;
+    #[test]
+    fn startup_preserves_live_socket_but_removes_a_stale_socket() {
+        let path =
+            std::env::temp_dir().join(format!("kajitsu-startup-{}.sock", std::process::id()));
+        let listener = UnixListener::bind(&path).unwrap();
+        assert!(prepare_socket(&path).is_err());
+        assert!(path.exists());
+        drop(listener);
+        prepare_socket(&path).unwrap();
+        assert!(!path.exists());
+    }
+    #[test]
+    fn startup_never_deletes_an_unrelated_regular_file() {
+        let path =
+            std::env::temp_dir().join(format!("kajitsu-regular-{}.sock", std::process::id()));
+        std::fs::write(&path, "keep this").unwrap();
+        assert!(prepare_socket(&path).is_err());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "keep this");
+        std::fs::remove_file(path).unwrap();
     }
 }

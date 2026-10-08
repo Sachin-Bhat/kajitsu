@@ -128,7 +128,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .anchor_vertical(Vertical::Top)
         .anchor_horizontal(Horizontal::Left)
         .margin(margin)
-        .layer(Layer::Top)
+        .layer(Layer::Overlay)
         .space(Zone::Respect)
         .keyboard(keyboard)
         .on_key(key_pressed)
@@ -176,7 +176,7 @@ fn empty(screen: Region) -> LayerWindow {
         .height(1.0)
         .anchor_vertical(Vertical::Top)
         .anchor_horizontal(Horizontal::Left)
-        .layer(Layer::Top)
+        .layer(Layer::Overlay)
         .space(Zone::Respect)
         .click_through()
         .child(Stack::new(children![

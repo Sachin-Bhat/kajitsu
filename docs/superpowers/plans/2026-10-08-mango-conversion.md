@@ -10,6 +10,8 @@
 
 **Spec:** [Conversion design](../specs/2026-10-08-mango-conversion-design.md).
 
+**Implementation status:** Tasks 1–6 source changes are implemented on `mango-conversion`. Task 7 has disposable-session evidence and a prepared cutover, with hardware, authenticated unlock/suspend, and real recording still pending. The independent review's recorder findings are fixed. See [the validation record](../../mango-validation.md) for results and limits; the checklist below retains the original planned steps.
+
 ## Global constraints
 
 - Mango is the only supported compositor; there is no requirement to preserve Niri support.
@@ -155,6 +157,6 @@ Tasks 4–6 can be reviewed independently after the build foundation. Complete t
 
 The task mapping covers compositor state, direct commands, Wayland behavior, native build/IPC, paths, fonts, application defaults, theme generation, recording, session lock, and documentation. The five review risks each have an owning task and an explicit check.
 
-The outstanding personal choices are the preferred UI/icon font families and any additional app integrations. The proposed fonts are available locally; if no different preference is supplied, use those recommendations. The scope of the first working conversion remains Mango plus WezTerm and bottom.
+The implemented font baseline is Inter Nerd Font Propo for UI text and GeistMono Nerd Font Mono for icons/monospace. Additional app integrations remain personal choices and stay disabled unless explicitly enabled. The scope of the first working conversion remains Mango plus WezTerm and bottom.
 
-This document is a plan, not evidence of a completed port. No build, graphical, lock, or application-reload check has been performed for the proposed changes. The planning audit used source inspection, installed CLI help/version output, fontconfig inventory, and read-only Mango queries. The linked Mango branch was inspected through local Git objects, and a read-only GitHub API request confirmed its remote revision matches `9d36cb9d3531c55ea44b1ee485e64e4acf1eb58f`. Its tests were inspected but have not been run in this planning update. No branch switch or source change was made in the local amane checkout.
+This document describes the planned work; completion evidence belongs in the validation record. The initial planning audit used source inspection, installed CLI help/version output, fontconfig inventory, and read-only Mango queries. The linked Mango branch was inspected through local Git objects, and a read-only GitHub API request confirmed its remote revision matched `9d36cb9d3531c55ea44b1ee485e64e4acf1eb58f`. The tested local framework revision and subsequent changes are now recorded in [validation](../../mango-validation.md).

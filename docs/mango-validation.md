@@ -1,6 +1,6 @@
 # Mango conversion validation
 
-The source conversion is implemented on `mango-conversion`. **Kajitsu is installed and running in the daily Mango session** following the requested local setup. Mango startup and launcher bindings now use Kajitsu; the existing Rustlock shortcut is retained. Authenticated unlock, logind/suspend, physical output changes, and recording audio/output-removal checks remain pending. See [desktop setup](desktop-setup.md) for the installed components and rollback.
+The source conversion is implemented on `mango-conversion`. **Kajitsu is installed and running in the daily Mango session** following the requested local setup. Mango startup, launcher, and Alt+L lock bindings now use Kajitsu. Authenticated unlock, logind/suspend, physical output changes, and recording audio/output-removal checks remain pending. See [desktop setup](desktop-setup.md) for the installed components and rollback.
 
 ## Build and framework
 
@@ -56,7 +56,7 @@ Graphical checks used a disposable Mango compositor with two headless outputs at
 
 The standalone native-Wayland WezTerm trial failed with an NVIDIA explicit-sync error (`Buffer attached but no acquire point set`). An XWayland trial using a temporary `enable_wayland = false` override succeeded, including palette reload. The later desktop-entry launch also opened a working WezTerm/bottom window in the disposable session. This does not establish reliable native-Wayland operation on the daily displays. The trial left the user's WezTerm config unchanged; the subsequent local setup added its palette loader while preserving other preferences.
 
-During the source-conversion checks, no authentication secret was requested or submitted. The disposable lock was recovered by quitting its compositor, and test processes were closed afterward. That phase left daily configuration intact. The later requested local setup replaced GPUi Shell, backed up modified configs, and enabled GTK/WezTerm/bottom/tmux/Cava. Spotify and Vesktop remain disabled because those apps are absent. The Rustlock command remains intact.
+During the source-conversion checks, no authentication secret was requested or submitted. The disposable lock was recovered by quitting its compositor, and test processes were closed afterward. That phase left daily configuration intact. The later requested local setup replaced GPUi Shell, backed up modified configs, and enabled GTK/WezTerm/bottom/tmux/Cava. Spotify and Vesktop remain disabled because those apps are absent. At the user's request, Alt+L now uses Kajitsu's native lock instead of the initially retained Rustlock command.
 
 Artix setup exposed two inherited assumptions: `systemctl` is absent on dinit/elogind, and the NixOS timer sound path is absent. Power actions now call the shared login1 DBus interface; read-only capability checks returned `yes`. The timer locates the freedesktop alarm through XDG data directories; a failing search-path regression now passes, and zero-volume PipeWire playback succeeded. No shutdown, reboot, or suspend was executed.
 
@@ -74,7 +74,7 @@ The requested local setup completed cutover with copied runtime assets and backu
 exec-once=/home/sachin/.local/bin/kajitsu-start
 ```
 
-GPUi Shell is stopped. Kajitsu owns notifications and the launcher binding; the complete existing Rustlock command remains on Alt+L. See [desktop setup](desktop-setup.md) for the installed shortcuts, update/restart commands, and restoration procedure. The original user configs and GTK dconf values are backed up with a manifest and rollback script. Optional integrations preserve their source app preferences.
+GPUi Shell is stopped. Kajitsu owns notifications, the launcher binding, and the Alt+L lock shortcut. Its native lock uses PAM `login`; the installed policy includes the system authentication stack and the local shell is allowed. A snapshot of the setup's Mango configuration was saved before switching the lock binding. The updated configuration passed Mango's parser and was reloaded; the daily desktop was not locked for an authentication test. See [desktop setup](desktop-setup.md) for the installed shortcuts, update/restart commands, and restoration procedure. The original user configs and GTK dconf values are backed up with a manifest and rollback script. Optional integrations preserve their source app preferences.
 
 ## Implementation decisions
 
@@ -92,7 +92,7 @@ The reviewer set aside the following operational areas. Each remains an explicit
 
 | Decision | Cost if the limit is insufficient |
 | --- | --- |
-| Keep rustlock and gate authenticated unlock/logind/suspend/recovery on hardware validation | Uncovered authentication or suspend bugs |
+| Use Kajitsu's native lock as requested; authenticated unlock/logind/suspend/recovery remain unverified on hardware | Uncovered authentication or suspend bugs |
 | Gate physical hotplug and broader fullscreen/display combinations on hardware validation | Uncovered output or layer-order bugs |
 | Keep live urgency, daily tmux and personal bottom layout checks pending | Workflow or layout mismatch |
 | Playable recording and graceful stop now pass; audio mixing and output removal still need validation | Uncovered capture or audio failure |

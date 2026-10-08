@@ -166,7 +166,7 @@ The wallpaper can also drive the shell's dynamic palette. Wallpaper transitions,
 
 ## Lock screen
 
-Keep **rustlock** as the daily lock route until the checks in [validation](docs/mango-validation.md) pass. Kajitsu inherits Suzuha's Wayland session lock that listens to logind, so anything that asks logind to lock (`loginctl lock-session`, an idle daemon, closing the lid) brings it up. It reuses the active wallpaper and palette, and slides the password field up once you start typing.
+**Alt+L** uses Kajitsu's native Wayland session lock in the local Mango setup. The backend authenticates through the system's PAM `login` service. Kajitsu inherits Suzuha's lock listener, so logind lock requests (`loginctl lock-session`, an idle daemon, closing the lid) also bring it up. It reuses the active wallpaper and palette, and slides the password field up once you start typing. See [validation](docs/mango-validation.md) for the checks performed.
 
 Lock it from the power menu, or through IPC:
 

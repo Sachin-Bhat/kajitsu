@@ -27,9 +27,9 @@ The power-menu button uses the Artix logo. Power actions use the login1 DBus int
 | Alt+Shift+V | File converter |
 | Alt+Shift+E | Start/stop recording |
 | Alt+Shift+Space | Fuzzel fallback |
-| Alt+L | Existing Rustlock command |
+| Alt+L | Kajitsu native lock screen |
 
-Pomodoro is available from the launcher's `>` command mode. Keep Rustlock on the daily lock shortcut until authenticated Kajitsu unlock and suspend/resume checks are complete. Kajitsu's lock remains available through its power menu and native IPC.
+Pomodoro is available from the launcher's `>` command mode. Alt+L, the power-menu lock action, and `kajitsu ipc call lock` use Kajitsu's native lock screen. Authentication uses the system's PAM `login` service and the system account password; the profile name does not change that account. The installed PAM policy and helper were checked, but authenticated unlock and suspend/resume remain manual checks.
 
 ## Restart, update, and rollback
 

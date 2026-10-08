@@ -9,7 +9,7 @@ const INTEGRATIONS: [(&str, &str, &str, &str); 7] = [
         "integration_gtk",
         "GTK",
         "GTK 3/4 and desktop preferences",
-        "This writes generated GTK themes, changes gtk-theme, icon-theme and color-scheme through dconf, replaces ~/.config/gtk-4.0/gtk.css with a symlink, and restarts xdg-desktop-portal-gnome.",
+        "This writes generated GTK themes, changes gtk-theme, icon-theme and color-scheme through dconf, replaces ~/.config/gtk-4.0/gtk.css with a symlink.",
     ),
     (
         "integration_wezterm",
@@ -36,10 +36,10 @@ const INTEGRATIONS: [(&str, &str, &str, &str); 7] = [
         "This creates and overwrites the Spotify stylesheet under your cache directory.",
     ),
     (
-        "integration_btop",
-        "btop",
-        "Generated terminal monitor theme",
-        "This creates and overwrites ~/.config/btop/themes/amane.theme.",
+        "integration_bottom",
+        "bottom",
+        "Generated effective TOML configuration",
+        "This copies your bottom config to Kajitsu state and replaces only its styles. Use btm --config_location with the generated file; colors apply on the next launch.",
     ),
     (
         "integration_cava",

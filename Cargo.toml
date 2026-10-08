@@ -7,3 +7,4 @@ license = "MIT"
 [dependencies]
 amane = { path = "../amane" }
 serde_json = "1.0"
+toml_edit = "=0.25.15"

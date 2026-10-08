@@ -83,7 +83,7 @@ const DEFAULTS: [(&str, &str); 70] = [
     ("integration_tmux", "false"),
     ("integration_vesktop", "false"),
     ("integration_spotify", "false"),
-    ("integration_btop", "false"),
+    ("integration_bottom", "false"),
     ("integration_cava", "false"),
 ];
 

@@ -1,4 +1,4 @@
-mod btop;
+mod bottom;
 mod cava;
 mod gtk;
 mod spotify;
@@ -23,12 +23,11 @@ use crate::theme::{self, Theme};
 // the settings key and the writer of each program that takes the shell's colors
 type Program = (&'static str, fn(&Theme));
 
-const PROGRAMS: [Program; 6] = [
+const PROGRAMS: [Program; 5] = [
     ("integration_gtk", gtk::export),
     ("integration_tmux", tmux::export),
     ("integration_vesktop", vesktop::export),
     ("integration_spotify", spotify::export),
-    ("integration_btop", btop::export),
     ("integration_cava", cava::export),
 ];
 
@@ -61,9 +60,11 @@ impl Service for Export {
             .copied()
             .collect();
         let wezterm_on = settings.flag("integration_wezterm");
+        let bottom_on = settings.flag("integration_bottom");
         self.written.retain(|key, _| {
             enabled.iter().any(|(enabled, _)| key == enabled)
                 || (*key == "integration_wezterm" && wezterm_on)
+                || (*key == "integration_bottom" && bottom_on)
         });
         drop(settings);
         let fingerprint = fingerprint(&theme);
@@ -75,10 +76,16 @@ impl Service for Export {
             self.report(key, result);
         }
         if wezterm_on {
-            let result = self.export_once("integration_wezterm", fingerprint, || {
+            let result = self.export_once("integration_wezterm", fingerprint.clone(), || {
                 wezterm::export(&theme)
             });
             self.report("integration_wezterm", result);
+        }
+        if bottom_on {
+            let result = self.export_bottom(fingerprint, &bottom::source_path(), || {
+                bottom::export(&theme)
+            });
+            self.report("integration_bottom", result);
         }
 
         false
@@ -99,6 +106,20 @@ impl Export {
         self.written.insert(key, fingerprint);
         Ok(())
     }
+    fn export_bottom(
+        &mut self,
+        theme_fingerprint: String,
+        source: &Path,
+        export: impl FnOnce() -> Result<(), String>,
+    ) -> Result<(), String> {
+        let base = bottom::read_source(source)?;
+        self.export_once(
+            "integration_bottom",
+            format!("{theme_fingerprint}\0{base}"),
+            export,
+        )
+    }
+
     fn report(&mut self, key: &'static str, result: Result<(), String>) {
         match result {
             Ok(()) => {
@@ -190,7 +211,10 @@ pub fn home() -> String {
 }
 
 pub fn config_home() -> String {
-    env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| format!("{}/.config", home()))
+    env::var("XDG_CONFIG_HOME")
+        .ok()
+        .filter(|path| Path::new(path).is_absolute())
+        .unwrap_or_else(|| format!("{}/.config", home()))
 }
 
 // where the generated files go, next to the settings

@@ -13,14 +13,14 @@ The local amane branch is `kajitsu-mango-local`, tested at `cc4f34de3ad707ec54f5
 | `cargo metadata --locked --offline` | Local amane path confirmed |
 | `cargo test --offline` | 24 Kajitsu tests passed after review fixes |
 | `cargo test --manifest-path ../amane/Cargo.toml -p amane --lib --offline` | 37 library tests passed, including 15 Mango tests |
-| `cargo fmt -- --check` | Shared tree passed; exported conversion commit retains inherited formatting differences |
-| `cargo clippy --all-targets --offline -- -D warnings` | Shared tree passed; exported conversion commit retains inherited lints |
+| `cargo fmt -- --check` | Passed, including the separate cleanup commit `eafc2f5` |
+| `cargo clippy --all-targets --offline -- -D warnings` | Passed, including the separate cleanup commit `eafc2f5` |
 | `cargo build --release --locked --offline` | Passed |
 | `git diff --check` | Passed |
 
-These checks used `RUSTC_WRAPPER=` because the inherited sccache wrapper cannot run in the restricted environment. Unix-socket tests ran with the necessary local socket access. Formatting and Clippy checks include concurrent cleanup already present in the shared working tree; those unrelated edits are preserved separately from the conversion commits.
+These checks used `RUSTC_WRAPPER=` because the inherited sccache wrapper cannot run in the restricted environment. Unix-socket tests ran with the necessary local socket access. Concurrent formatting and Clippy cleanup was preserved separately from the conversion and subsequently committed as `eafc2f5`; it was outside the independent conversion review.
 
-The final exported conversion source independently passed all **24 tests**. Comparing exported baseline and conversion source found **no new unformatted files or Clippy lint classes/files**: the baseline had 73 unformatted files and 11 distinct lints; the conversion retained 56 and seven. The remaining lints are `collapsible_if` in bar/system, lock_screen/password, overlay/control_center/media and settings/pages/user; `manual_range_patterns` in floating/weather; `manual_is_multiple_of` in pomodoro; and `items_after_test_module` in theme. A strict formatting/Clippy gate on the conversion commits alone still requires the separately preserved cleanup.
+The exported conversion source at `d5956ec` independently passed all **24 tests**. Before cleanup, comparing exported baseline and conversion source found **no new unformatted files or Clippy lint classes/files**: the baseline had 73 unformatted files and 11 distinct lints; the conversion retained 56 and seven. Those inherited lints were `collapsible_if` in bar/system, lock_screen/password, overlay/control_center/media and settings/pages/user; `manual_range_patterns` in floating/weather; `manual_is_multiple_of` in pomodoro; and `items_after_test_module` in theme. The separate cleanup commit resolves these branch gates; applying the conversion commits without it retains the old failures.
 
 The independent review found a recorder-panel deadlock from nested read guards and an editable audio mode during asynchronous startup. Both were fixed in one pass: a contention regression reproduced the deadlock before passing, and a startup-state regression now verifies that pending capture keeps its chosen audio. The panel snapshots state under one read guard, renders after dropping it, shows “Starting…”, and blocks audio changes until startup finishes. All 24 tests pass after these fixes; real capture remains gated below.
 
@@ -102,6 +102,6 @@ The reviewer set aside the following operational areas. Each remains an explicit
 | Keep live urgency, daily tmux and personal bottom layout checks pending | Workflow or layout mismatch |
 | Gate playable recording, audio mixing and output removal during capture on wf-recorder validation | Uncovered capture or audio failure |
 | Leave native-Wayland WezTerm reliability unresolved after the NVIDIA failure; preserve user config | Native terminal startup can still fail |
-| Preserve concurrent cleanup separately and report committed-branch lint/format limitations | Strict branch gates still fail until cleanup lands |
+| Preserve concurrent cleanup separately and report conversion-only lint/format limitations; cleanup has now landed | Strict gates fail if the cleanup is omitted |
 | Leave inherited integrations disabled and certify only converted paths/export behavior and terminal metadata | Latent bugs in optional inherited behavior |
 | Target the installed Mango protocol; do not claim other compositor or future-version support | Future protocol or portability changes can break behavior |

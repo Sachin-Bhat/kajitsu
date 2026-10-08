@@ -62,17 +62,16 @@ Configuration defaults to `$XDG_CONFIG_HOME/kajitsu` (or `~/.config/kajitsu`). S
 
 ## Dependencies
 
-### Current inherited requirements
+### Required
 
-- **amane**
-- **Niri** (current compositor dependency, pending migration to Mango)
-- **Poppins**
-- **JetBrains Mono Nerd Font**
-- **Symbols Nerd Font**
-- **Material Design Icons**
+- **Local amane source** in `~/Documents/amane`, with Mango workspace support
+- **Mango** (JSON IPC, tested against installed 0.17.5)
+- **Inter Nerd Font** for UI text
+- **GeistMono Nerd Font Mono** for monospace and icons
+- **Rust/Cargo**, a C toolchain, `pkg-config`, Wayland, libxkbcommon, fontconfig, libpulse, Vulkan/EGL development libraries, and PAM runtime
 - **curl**
 
-The fonts listed above are still used by the current code. Kajitsu will use different font requirements as it is adapted to my setup; replacement families have not been selected here yet.
+bottom inherits its font from WezTerm. The installed font files cover all 87 icon codepoints used by the shell; graphical checks are recorded separately.
 
 ### Optional
 
@@ -99,7 +98,7 @@ Everything is driven through `kajitsu ipc call`. Mango bindings can invoke it di
 
 ```ini
 bind=ALT,Space,spawn,kajitsu ipc call launcher toggle
-bind=ALT SHIFT,w,spawn,kajitsu ipc call wallpaper toggle
+bind=ALT+SHIFT,w,spawn,kajitsu ipc call wallpaper toggle
 ```
 
 <details>
@@ -134,7 +133,7 @@ The available command entries can be enabled or disabled from **Settings → Lau
 `showTmux` opens the launcher straight into the tmux project picker:
 
 ```ini
-bind=ALT SHIFT,p,spawn,kajitsu ipc call launcher showTmux
+bind=ALT+SHIFT,p,spawn,kajitsu ipc call launcher showTmux
 ```
 
 ## Wallpapers & colors

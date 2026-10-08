@@ -11,14 +11,18 @@ The local amane branch is `kajitsu-mango-local`, tested at `cc4f34de3ad707ec54f5
 | Check | Result |
 | --- | --- |
 | `cargo metadata --locked --offline` | Local amane path confirmed |
-| `cargo test --offline` | 22 Kajitsu tests passed |
+| `cargo test --offline` | 24 Kajitsu tests passed after review fixes |
 | `cargo test --manifest-path ../amane/Cargo.toml -p amane --lib --offline` | 37 library tests passed, including 15 Mango tests |
-| `cargo fmt -- --check` | Passed in the shared working tree |
-| `cargo clippy --all-targets --offline -- -D warnings` | Passed in the shared working tree |
+| `cargo fmt -- --check` | Shared tree passed; exported conversion commit retains inherited formatting differences |
+| `cargo clippy --all-targets --offline -- -D warnings` | Shared tree passed; exported conversion commit retains inherited lints |
 | `cargo build --release --locked --offline` | Passed |
 | `git diff --check` | Passed |
 
 These checks used `RUSTC_WRAPPER=` because the inherited sccache wrapper cannot run in the restricted environment. Unix-socket tests ran with the necessary local socket access. Formatting and Clippy checks include concurrent cleanup already present in the shared working tree; those unrelated edits are preserved separately from the conversion commits.
+
+An exported conversion commit independently passed its 22 tests before the final review fixes. Comparing exported baseline and conversion source found **no new unformatted files or Clippy lint classes/files**: the baseline had 73 unformatted files and 11 distinct lints; the conversion retained 56 and seven. The remaining lints are `collapsible_if` in bar/system, lock_screen/password, overlay/control_center/media and settings/pages/user; `manual_range_patterns` in floating/weather; `manual_is_multiple_of` in pomodoro; and `items_after_test_module` in theme. A strict formatting/Clippy gate on the conversion commits alone still requires the separately preserved cleanup.
+
+The independent review found a recorder-panel deadlock from nested read guards and an editable audio mode during asynchronous startup. Both were fixed in one pass: a contention regression reproduced the deadlock before passing, and a startup-state regression now verifies that pending capture keeps its chosen audio. The panel snapshots state under one read guard, renders after dropping it, shows “Starting…”, and blocks audio changes until startup finishes. All 24 tests pass after these fixes; real capture remains gated below.
 
 Tests cover exact IPC argument framing, stale socket recovery, XDG path separation, tag presentation and conservative desktop occupancy, fresh output-query failure, bounded replies, palette serialization, atomic export failure/retry, literal tmux session arguments, and bottom preference preservation. The amane tests cover monitor/tag identity, multi-selection, urgency parsing, monitor focus confirmation, subscription EOF/recovery, malformed events, bounded queries, and global windows.
 
@@ -87,3 +91,17 @@ For rollback, exit Kajitsu while the session is unlocked, restore the previous s
 6. Use Inter Nerd Font Propo because the installed non-Propo family resolves Regular/Bold requests to Thin. Cost if wrong: a different UI family from the initial recommendation; no font installation was needed.
 7. Recover only demonstrably stale native IPC sockets, while rejecting live sockets, symlinks, and unrelated files. Cost if wrong: ambiguous socket paths prevent startup rather than being deleted.
 8. Place interactive panels and dismissal above fullscreen clients using Layer::Overlay, leaving the ordinary bar at Top. Cost if wrong: an open panel intentionally covers fullscreen content.
+9. Re-grade editable startup audio from Minor to Important because a displayed “No sound” choice must not leave the captured mic mode active. Cost if wrong: a small additional state fix and regression test.
+
+The reviewer set aside the following operational areas. Each remains an explicit limit rather than a claim of support:
+
+| Decision | Cost if the limit is insufficient |
+| --- | --- |
+| Keep rustlock and gate authenticated unlock/logind/suspend/recovery on hardware validation | Uncovered authentication or suspend bugs |
+| Gate physical hotplug and broader fullscreen/display combinations on hardware validation | Uncovered output or layer-order bugs |
+| Keep live urgency, daily tmux and personal bottom layout checks pending | Workflow or layout mismatch |
+| Gate playable recording, audio mixing and output removal during capture on wf-recorder validation | Uncovered capture or audio failure |
+| Leave native-Wayland WezTerm reliability unresolved after the NVIDIA failure; preserve user config | Native terminal startup can still fail |
+| Preserve concurrent cleanup separately and report committed-branch lint/format limitations | Strict branch gates still fail until cleanup lands |
+| Leave inherited integrations disabled and certify only converted paths/export behavior and terminal metadata | Latent bugs in optional inherited behavior |
+| Target the installed Mango protocol; do not claim other compositor or future-version support | Future protocol or portability changes can break behavior |

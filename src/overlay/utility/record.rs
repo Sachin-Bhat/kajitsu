@@ -31,14 +31,17 @@ const CHECK: &str = "󰄬";
 
 // a header like the other pages, the sound modes as cards, and the record button at the bottom
 pub fn view(overlay: &Overlay, theme: &Theme, width: f32, height: f32) -> Column {
-    let chosen = Recorder::read().audio;
+    let recorder = Recorder::read();
+    let chosen = recorder.audio;
+    let starting = recorder.starting();
+    let status = recorder.elapsed();
+    let error = recorder.error.clone();
+    drop(recorder);
 
-    let status = recorder::status();
-
-    let title = title(theme, status.as_deref(), width);
+    let title = title(theme, status.as_deref(), error.as_deref(), starting, width);
 
     // the sound can't change mid-recording, so the cards stop taking clicks then
-    let locked = status.is_some();
+    let locked = starting || status.is_some();
 
     let mut cards: Vec<Box<dyn Widget>> = Vec::new();
 
@@ -68,26 +71,31 @@ pub fn view(overlay: &Overlay, theme: &Theme, width: f32, height: f32) -> Column
     Column::new(children![
         title,
         area,
-        button(overlay, theme, status, width)
+        button(overlay, theme, status, starting, width)
     ])
     .gap(GAP)
 }
 
 // header.rs's look, without its switch since the button below starts and stops
-fn title(theme: &Theme, status: Option<&str>, width: f32) -> Rectangle {
-    let (icon_fill, text, color) = match status {
-        Some(time) => (theme.danger, format!("Recording · {time}"), theme.danger),
-        None => match Recorder::read().error.as_ref() {
-            Some(error) => (theme.danger, error.clone(), theme.danger),
-            None => match Recorder::read().error.as_ref() {
-                Some(error) => (theme.danger, error.clone(), theme.danger),
-                None => (
-                    theme.accent,
-                    String::from("Ready · saves to ~/Videos"),
-                    theme.muted_text,
-                ),
-            },
-        },
+fn title(
+    theme: &Theme,
+    status: Option<&str>,
+    error: Option<&str>,
+    starting: bool,
+    width: f32,
+) -> Rectangle {
+    let (icon_fill, text, color) = if starting {
+        (theme.accent, String::from("Starting…"), theme.muted_text)
+    } else {
+        match (status, error) {
+            (Some(time), _) => (theme.danger, format!("Recording · {time}"), theme.danger),
+            (None, Some(error)) => (theme.danger, error.to_owned(), theme.danger),
+            (None, None) => (
+                theme.accent,
+                String::from("Ready · saves to ~/Videos"),
+                theme.muted_text,
+            ),
+        }
     };
 
     let icon = Rectangle::new()
@@ -229,16 +237,26 @@ fn card(
 
     card.cursor(Pointer)
         .on_hover(move |inside| hover(hover_name.clone(), inside))
-        .on_click(move |_| Recorder::write().audio = audio)
+        .on_click(move |_| Recorder::write().select_audio(audio))
 }
 
 // accent to start, red with the time to stop
-fn button(overlay: &Overlay, theme: &Theme, status: Option<String>, width: f32) -> Rectangle {
+fn button(
+    overlay: &Overlay,
+    theme: &Theme,
+    status: Option<String>,
+    starting: bool,
+    width: f32,
+) -> Rectangle {
     let hover_name = String::from("record:button");
 
-    let (icon, label, fill) = match status {
-        Some(time) => (STOP_ICON, format!("Stop · {time}"), theme.danger),
-        None => (RECORD_ICON, String::from("Start recording"), theme.accent),
+    let (icon, label, fill) = if starting {
+        (RECORD_ICON, String::from("Starting…"), theme.accent)
+    } else {
+        match status {
+            Some(time) => (STOP_ICON, format!("Stop · {time}"), theme.danger),
+            None => (RECORD_ICON, String::from("Start recording"), theme.accent),
+        }
     };
 
     let fill = if hovered(overlay, &hover_name) {
@@ -262,14 +280,69 @@ fn button(overlay: &Overlay, theme: &Theme, status: Option<String>, width: f32) 
     .gap(8.0)
     .align(Center);
 
-    Rectangle::new()
+    let button = Rectangle::new()
         .width(width)
         .height(BUTTON_HEIGHT)
         .radius(BUTTON_HEIGHT / 2.0)
         .fill(fill)
+        .align_child(Center, Center)
+        .child(content);
+
+    if starting {
+        return button.opacity(0.5);
+    }
+
+    button
         .cursor(Pointer)
         .on_hover(move |inside| hover(hover_name.clone(), inside))
         .on_click(|_| recorder::toggle())
-        .align_child(Center, Center)
-        .child(content)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use amane::Color;
+    use std::time::Duration;
+
+    #[test]
+    fn recorder_header_renders_while_updates_contend() {
+        Recorder::write().error = None;
+        let state = Recorder::read();
+        let error = state.error.clone();
+        let (waiting, pending) = std::sync::mpsc::channel();
+        let writer = std::thread::spawn(move || {
+            waiting.send(()).unwrap();
+            drop(Recorder::write());
+        });
+        pending.recv().unwrap();
+        // Give the writer time to queue behind the retained read guard.
+        std::thread::sleep(Duration::from_millis(50));
+        let (done, finished) = std::sync::mpsc::channel();
+        let reader = std::thread::spawn(move || {
+            let theme = Theme {
+                light: false,
+                background: Color::BLACK,
+                surface: Color::BLACK,
+                hover_surface: Color::BLACK,
+                selected_surface: Color::BLACK,
+                border: Color::BLACK,
+                text: Color::WHITE,
+                secondary_text: Color::WHITE,
+                muted_text: Color::WHITE,
+                accent: Color::WHITE,
+                accent_hover: Color::WHITE,
+                on_accent: Color::BLACK,
+                success: Color::WHITE,
+                danger: Color::WHITE,
+            };
+            drop(title(&theme, None, error.as_deref(), false, 280.0));
+            done.send(()).unwrap();
+        });
+        finished
+            .recv_timeout(Duration::from_secs(5))
+            .expect("recorder header deadlocked with a queued update");
+        drop(state);
+        reader.join().unwrap();
+        writer.join().unwrap();
+    }
 }

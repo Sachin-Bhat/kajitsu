@@ -62,6 +62,23 @@ pub struct Recorder {
     starting: bool,
 }
 
+impl Recorder {
+    pub fn starting(&self) -> bool {
+        self.starting
+    }
+
+    pub fn select_audio(&mut self, audio: Audio) {
+        if !self.starting && self.child.is_none() {
+            self.audio = audio;
+        }
+    }
+
+    pub fn elapsed(&self) -> Option<String> {
+        self.child.as_ref()?;
+        Some(time(self.started.elapsed()))
+    }
+}
+
 impl Service for Recorder {
     fn new() -> Self {
         Self {
@@ -210,11 +227,7 @@ fn mix() -> Vec<String> {
 
 // like "01:23" while recording, for the bar tray and the record button
 pub fn status() -> Option<String> {
-    let recorder = Recorder::read();
-
-    recorder.child.as_ref()?;
-
-    Some(time(recorder.started.elapsed()))
+    Recorder::read().elapsed()
 }
 
 fn time(gone: Duration) -> String {
@@ -227,4 +240,28 @@ pub fn ipc(_arguments: &[String]) -> String {
     toggle();
 
     String::from("ok")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pending_startup_keeps_captured_audio_until_it_finishes() {
+        let mut recorder = Recorder::new();
+        recorder.audio = Audio::Mic;
+        recorder.starting = true;
+        recorder.select_audio(Audio::None);
+        assert!(
+            recorder.audio == Audio::Mic,
+            "startup changed the captured audio mode"
+        );
+        assert!(recorder.starting());
+        recorder.starting = false;
+        recorder.select_audio(Audio::None);
+        assert!(
+            recorder.audio == Audio::None,
+            "finished startup kept the controls locked"
+        );
+    }
 }

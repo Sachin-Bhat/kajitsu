@@ -130,16 +130,21 @@ mod tests {
                 index: 1,
                 selected: true,
                 windows: 0,
+                global: false,
             },
             TagState {
                 index: 3,
                 selected: true,
                 windows: 1,
+                global: false,
             },
         ];
         assert!(!desktop_empty(&tags));
         tags[1].windows = 0;
         assert!(desktop_empty(&tags));
+        tags[1].global = true;
+        assert!(!desktop_empty(&tags));
+        tags[1].global = false;
         tags[0].selected = false;
         tags[1].selected = false;
         assert!(!desktop_empty(&tags));
@@ -154,16 +159,19 @@ mod tests {
                 index: 1,
                 selected: true,
                 windows: 0,
+                global: false,
             },
             TagState {
                 index: 2,
                 selected: false,
                 windows: 0,
+                global: false,
             },
             TagState {
                 index: 3,
                 selected: true,
                 windows: 1,
+                global: false,
             },
         ];
         assert_eq!(active_label(&tags), "Tags 1, 3");

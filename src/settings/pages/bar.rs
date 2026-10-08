@@ -45,7 +45,7 @@ pub fn build(page: &mut Page) {
     switch::add(
         page,
         "bar_logo",
-        "NixOS logo",
+        "Artix logo",
         "Show the power-menu launcher",
     );
     switch::add(

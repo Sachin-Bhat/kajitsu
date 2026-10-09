@@ -56,6 +56,12 @@ pub fn build(page: &mut Page) {
     );
     switch::add(
         page,
+        "bar_layout",
+        "Layout switcher",
+        "Show the current Mango layout; click or scroll to switch",
+    );
+    switch::add(
+        page,
         "bar_workspace_name",
         "Workspace name",
         "Show the active workspace label",
@@ -79,8 +85,14 @@ pub fn build(page: &mut Page) {
     switch::add(
         page,
         "bar_tray",
-        "System tray group",
+        "Utility shortcuts",
         "Show notifications, network, and Bluetooth shortcuts",
+    );
+    switch::add(
+        page,
+        "bar_systray",
+        "System tray",
+        "Show running applications and their menus",
     );
 
     page.end_group();

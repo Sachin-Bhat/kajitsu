@@ -1,10 +1,12 @@
 mod center;
+mod layout;
 mod motion;
 mod pill;
 mod reveal;
 mod ring;
 mod star;
 mod system;
+pub(crate) mod systray;
 mod timer;
 mod workspaces;
 
@@ -62,11 +64,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     drop(settings);
 
     // how far the bar is out, always all the way unless it hides
-    let target = if !hides || Reveal::read().inside {
-        1.0
-    } else {
-        0.0
-    };
+    let target =
+        if !hides || Reveal::read().inside || crate::tray::ui::keep_bar_visible(&monitor.name) {
+            1.0
+        } else {
+            0.0
+        };
 
     let shown = shell_motion::follow(&format!("bar:{}", monitor.name), target, DEFAULT_SPATIAL);
 
@@ -78,7 +81,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let sections = Row::new(children![
         workspaces::view(monitor, &theme, third),
         center::view(&theme, third),
-        system::view(&theme, third),
+        system::view(monitor, &theme, third),
     ]);
 
     // taller than the bar and clipped, so only the corners away from the edge come out rounded
@@ -138,6 +141,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .opacity(Curtain::read().items.value())
                 .clip()
                 .on_hover(reveal::hover)
+                .on_click(|_| crate::tray::ui::close())
                 .child(
                     Rectangle::new()
                         .width(Parent)

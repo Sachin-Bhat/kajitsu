@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use amane::Service;
 
 // every setting and the value it has until changed
-const DEFAULTS: [(&str, &str); 70] = [
+const DEFAULTS: [(&str, &str); 72] = [
     // appearance
     ("blur_strength", "1"),
     ("reduce_transparency", "false"),
@@ -24,6 +24,7 @@ const DEFAULTS: [(&str, &str); 70] = [
     ("workspace_style", "pill"),
     ("bar_logo", "true"),
     ("bar_workspaces", "true"),
+    ("bar_layout", "true"),
     ("bar_workspace_name", "true"),
     ("bar_audio", "true"),
     ("bar_media", "true"),
@@ -31,6 +32,7 @@ const DEFAULTS: [(&str, &str); 70] = [
     ("bar_battery", "true"),
     ("bar_memory", "true"),
     ("bar_tray", "true"),
+    ("bar_systray", "true"),
     ("clock_24_hour", "false"),
     ("clock_seconds", "false"),
     // launcher
@@ -204,6 +206,11 @@ impl Settings {
         settings.draft.insert(String::from(key), value);
 
         settings.save();
+        let close_tray = !settings.flag("bar_systray");
+        drop(settings);
+        if close_tray {
+            crate::tray::ui::close();
+        }
     }
 
     pub fn apply() {
@@ -212,6 +219,11 @@ impl Settings {
         settings.values = settings.draft.clone();
 
         settings.save();
+        let close_tray = !settings.flag("bar_systray");
+        drop(settings);
+        if close_tray {
+            crate::tray::ui::close();
+        }
     }
 
     // the draft starts over from what the shell uses

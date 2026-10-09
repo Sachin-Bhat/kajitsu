@@ -3,6 +3,8 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::time::Duration;
 
+pub mod layouts;
+
 pub fn desktop_empty(tags: &[TagState]) -> bool {
     let selected: Vec<_> = tags.iter().filter(|tag| tag.selected).collect();
     !selected.is_empty() && selected.iter().all(|tag| tag.windows == 0 && !tag.global)
@@ -33,11 +35,75 @@ pub fn focused_output() -> Result<String, String> {
     parse_focused_output(&request("get all-monitors")?)
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct OutputGeometry {
+    pub name: String,
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub scale: f32,
+}
+
+pub(crate) fn output_geometries() -> Result<Vec<OutputGeometry>, String> {
+    parse_output_geometries(&request("get all-monitors")?)
+}
+
+fn parse_output_geometries(reply: &str) -> Result<Vec<OutputGeometry>, String> {
+    let value: serde_json::Value =
+        serde_json::from_str(reply).map_err(|e| format!("Invalid Mango reply: {e}"))?;
+    let monitors = value["monitors"]
+        .as_array()
+        .ok_or("Mango reply has no monitor list")?;
+    monitors
+        .iter()
+        .filter(|monitor| {
+            !(monitor["width"].as_u64() == Some(0) && monitor["height"].as_u64() == Some(0))
+        })
+        .map(|monitor| {
+            let name = monitor["name"]
+                .as_str()
+                .filter(|s| !s.is_empty())
+                .ok_or("Output has no name")?
+                .to_string();
+            let coordinate = |key: &str| {
+                monitor[key]
+                    .as_i64()
+                    .and_then(|v| i32::try_from(v).ok())
+                    .ok_or_else(|| format!("Output has no valid {key}"))
+            };
+            let dimension = |key: &str| {
+                monitor[key]
+                    .as_u64()
+                    .and_then(|v| u32::try_from(v).ok())
+                    .filter(|v| *v > 0)
+                    .ok_or_else(|| format!("Output has no valid {key}"))
+            };
+            let scale = monitor["scale"]
+                .as_f64()
+                .filter(|s| s.is_finite() && *s > 0.0 && *s <= f64::from(f32::MAX))
+                .ok_or("Output has no valid scale")? as f32;
+            Ok(OutputGeometry {
+                name,
+                x: coordinate("x")?,
+                y: coordinate("y")?,
+                width: dimension("width")?,
+                height: dimension("height")?,
+                scale,
+            })
+        })
+        .collect()
+}
+
 pub fn quit() -> Result<(), String> {
     check_success(&request("dispatch quit")?)
 }
 
 fn request(command: &str) -> Result<String, String> {
+    read_reply(connect(command)?, Duration::from_secs(3))
+}
+
+fn connect(command: &str) -> Result<UnixStream, String> {
     let path =
         std::env::var_os("MANGO_INSTANCE_SIGNATURE").ok_or("Mango IPC socket is unavailable")?;
     let mut stream =
@@ -46,7 +112,7 @@ fn request(command: &str) -> Result<String, String> {
         .set_write_timeout(Some(Duration::from_secs(3)))
         .map_err(|e| e.to_string())?;
     writeln!(stream, "{command}").map_err(|e| format!("Mango request failed: {e}"))?;
-    read_reply(stream, Duration::from_secs(3))
+    Ok(stream)
 }
 
 fn read_reply(stream: UnixStream, timeout: Duration) -> Result<String, String> {
@@ -123,6 +189,27 @@ mod tests {
     use super::*;
     use std::os::unix::net::UnixStream;
     use std::time::Duration;
+    #[test]
+    fn output_geometries_use_logical_origins_and_reject_missing_dimensions() {
+        let outputs = parse_output_geometries(r#"{"monitors":[{"name":"eDP-1","x":1920,"y":-20,"width":2304,"height":1440,"scale":1.25}]}"#).unwrap();
+        assert_eq!(
+            (outputs[0].x, outputs[0].y, outputs[0].width),
+            (1920, -20, 2304)
+        );
+        assert_eq!(outputs[0].scale, 1.25);
+        assert!(parse_output_geometries(r#"{"monitors":[{"name":"gone"}]}"#).is_err());
+        assert!(
+            parse_output_geometries(r#"{"monitors":[]}"#)
+                .unwrap()
+                .is_empty()
+        );
+    }
+    #[test]
+    fn disabled_output_does_not_invalidate_live_output_geometry() {
+        let outputs = parse_output_geometries(r#"{"monitors":[{"name":"live","x":0,"y":0,"width":1280,"height":720,"scale":1},{"name":"off","x":0,"y":0,"width":0,"height":0,"scale":1.25}]}"#).unwrap();
+        assert_eq!(outputs.len(), 1);
+        assert_eq!(outputs[0].name, "live");
+    }
     #[test]
     fn desktop_requires_every_selected_tag_to_be_empty() {
         let mut tags = [

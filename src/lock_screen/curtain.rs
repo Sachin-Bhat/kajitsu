@@ -41,6 +41,7 @@ impl Service for Curtain {
 
 // blocks until the session is locked; a lock already on its way is left alone
 pub fn close() {
+    crate::tray::ui::close();
     {
         let mut curtain = Curtain::write();
 

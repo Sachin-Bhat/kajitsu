@@ -80,7 +80,10 @@ pub fn view(theme: &Theme) -> Option<Rectangle> {
         let pill = pill::view(width, theme.accent)
             .clip()
             .cursor(Pointer)
-            .on_click(|_| pomodoro::toggle())
+            .on_click(|_| {
+                crate::tray::ui::close();
+                pomodoro::toggle();
+            })
             .align_child(Center, Center)
             .child(content);
 

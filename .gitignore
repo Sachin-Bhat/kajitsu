@@ -1,2 +1,4 @@
 REWRITE.md
 target/
+__pycache__/
+.abide/

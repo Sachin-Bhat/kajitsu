@@ -3,7 +3,7 @@ use amane::{
     Weight, Widget, Workspace, Workspaces,
 };
 
-use super::{motion, star};
+use super::{layout, motion, star};
 use crate::fonts;
 use crate::overlay::Overlay;
 use crate::settings::Settings;
@@ -65,6 +65,10 @@ pub fn view(monitor: &Monitor, theme: &Theme, width: f32) -> Row {
 
     if settings.flag("bar_logo") {
         items.push(Box::new(logo));
+    }
+
+    if settings.flag("bar_layout") {
+        items.push(Box::new(layout::view(&monitor.name, theme)));
     }
 
     if settings.flag("bar_workspaces") {
@@ -188,7 +192,10 @@ fn slot(workspace: &Workspace, theme: &Theme, style: &str, single: bool) -> Rect
             Color::TRANSPARENT
         })
         .cursor(Pointer)
-        .on_click(move |_| Workspaces::focus(id))
+        .on_click(move |_| {
+            crate::tray::ui::close();
+            Workspaces::focus(id);
+        })
         .align_child(Center, Center)
         .child(mark)
 }

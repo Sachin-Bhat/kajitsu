@@ -26,7 +26,7 @@ The conversion uses native Mango workspace support from my local amane checkout.
 
 ### Included
 
-- Status bar with workspaces, system information, clock, media, and a pomodoro pill
+- Status bar with workspaces, an interactive Mango layout indicator, system information, clock, media, and a pomodoro pill
 - Liquid shader that lets the bar and panels flow into each other, with rounded screen corners
 - Application launcher with a `>` command mode and a tmux project picker
 - Control center with media controls and a cava visualizer
@@ -40,6 +40,51 @@ The conversion uses native Mango workspace support from my local amane checkout.
 - logind-driven Wayland lock screen
 - Built-in settings window
 - Optional theme integrations for WezTerm, bottom, GTK, tmux, Vesktop, Spotify, and cava
+
+### Layout switcher
+
+Each monitor's bar shows its current Mango layout beside the workspace strip.
+An outlined pane diagram accompanies the name, with rotated patterns for vertical
+layouts. The pill sizes itself to the icon and measured text with consistent padding.
+Left-click or scroll down to select the next layout; right-click or scroll up to
+select the previous one. The control cycles through the layouts reported by
+`mmsg get layouts` and wraps at either end. It follows layout changes made through
+keybindings or other Mango clients, including changes on inactive monitors.
+
+The indicator uses native Mango IPC. It shows **Layout —** with input disabled
+while layout state is unavailable, and reconnects when IPC returns. Control calls
+run off the drawing thread and confirm the clicked output before changing its
+layout. **Settings → Bar → Layout switcher** controls its visibility.
+
+Mango 0.17.5 [applies `setlayout` to the currently focused monitor](https://github.com/mangowm/mango/blob/0.17.5/src/dispatch/bind.c#L828-L845). Focus confirmation
+and layout dispatch are separate IPC calls, so moving focus during a switch can
+apply the change to the newly focused monitor.
+
+### System tray
+
+Running StatusNotifier applications appear in a compact pill beside the utility
+shortcuts on each monitor. It grows with its icons, disappears when empty, and
+puts excess items in an overflow list. Passive items stay hidden until active;
+attention icons receive an accent outline and retain their application colors.
+
+Left-click activates an app, right-click opens its exported menu, and middle-click
+sends secondary activation. Menu-only items open their menu on left-click.
+Applications without an exported menu receive ContextMenu on right-click.
+Both scroll axes are forwarded; hovering shows a plain-text tooltip after 400ms.
+Menus support check/radio states, icons, live updates, lazy submenus, and scrolling.
+Use arrow keys, Home/End, Enter/Space, Escape, or an outside click.
+
+**Settings → Bar → System tray** controls application icons independently of
+**Utility shortcuts**, which retains the existing `bar_tray` preference. The tray
+holds an auto-hidden bar open on the clicked monitor. Removal, disabling the tray,
+output removal, and starting the session lock close its popup.
+
+Kajitsu starts a native watcher on the session bus or joins an existing watcher
+as a host without replacing it. It follows owner changes and reconnects after
+bus loss. Local amane's owned-image helpers let updated tray images be released
+without growing its file cache. XEmbed-only legacy icons and animated attention
+movies are unsupported. See [native tray verification](docs/desktop-setup.md#system-tray)
+for the controlled fixture and regression commands.
 
 ## Installation
 
@@ -62,7 +107,7 @@ To make the IPC and Mango binding examples available in `PATH`:
 install -Dm755 target/release/kajitsu ~/.local/bin/kajitsu
 ```
 
-The tracked manifest uses `amane = { path = "../amane" }`, so changes in the local library are used on the next build. Its Mango support comes from [add-mango-workspace-support](https://github.com/Sachin-Bhat/amane/tree/add-mango-workspace-support). Cargo.lock locks external dependencies; local amane changes are deliberately not pinned. See [validation](docs/mango-validation.md) for the tested revision and remaining desktop checks.
+The tracked manifest uses `amane = { path = "../amane" }`, so changes in the local library are used on the next build. The tested revision is [1b07d1f](https://github.com/Sachin-Bhat/amane/commit/1b07d1f04b4782e9583e60b158ebe22900ef53cb) on [kajitsu-mango-local](https://github.com/Sachin-Bhat/amane/tree/kajitsu-mango-local). It includes the owned-image helpers required by the native tray, desktop lifecycle fixes, and Mango support originating from [add-mango-workspace-support](https://github.com/Sachin-Bhat/amane/tree/add-mango-workspace-support). Cargo.lock locks external dependencies; local amane changes are deliberately not pinned. See [validation](docs/mango-validation.md) for the tested revision and remaining desktop checks.
 
 Use native Cargo commands here. The amane CLI's compile/dev workflow generates a different manifest and embedded library snapshot. No amane CLI is required to launch Kajitsu or send IPC.
 
@@ -72,7 +117,7 @@ Configuration defaults to `$XDG_CONFIG_HOME/kajitsu` (or `~/.config/kajitsu`). S
 
 ### Required
 
-- **Local amane source** in `~/Documents/amane`, with Mango workspace support
+- **Local amane source** in `~/Documents/amane`, with Mango workspace support and owned-image helpers
 - **Mango** (JSON IPC, tested against installed 0.17.5)
 - **Inter Nerd Font Propo** for UI text
 - **GeistMono Nerd Font Mono** for monospace and icons
@@ -81,6 +126,28 @@ Configuration defaults to `$XDG_CONFIG_HOME/kajitsu` (or `~/.config/kajitsu`). S
 - **systemd-logind or elogind**, with a session bus and a polkit agent for session/power actions
 
 bottom inherits its font from WezTerm. The installed font files cover all 87 icon codepoints used by the shell; graphical checks are recorded separately.
+
+### Desktop font defaults
+
+The desktop font choices are **GeistMono Nerd Font Mono** for monospace,
+**Inter Nerd Font Propo** for sans-serif, and **Tinos Nerd Font Propo** for serif.
+Install these families before applying the [fontconfig example](examples/fontconfig/60-kajitsu-fonts.conf).
+Tinos is available from the [official Nerd Fonts downloads](https://www.nerdfonts.com/font-downloads)
+or the Artix `galaxy/ttf-tinos-nerd` package.
+
+```sh
+mkdir -p ~/.config/fontconfig/conf.d
+install -m644 examples/fontconfig/60-kajitsu-fonts.conf ~/.config/fontconfig/conf.d/
+fc-cache -f
+fc-match monospace
+fc-match sans-serif
+fc-match serif
+```
+
+These preferences apply when an application requests a generic font family.
+Applications with explicit font settings need their own configuration. Restart
+applications that have already loaded their fonts. Kajitsu uses Inter for UI text
+and GeistMono for icons; bottom uses the font selected in WezTerm.
 
 ### Optional
 

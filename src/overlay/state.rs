@@ -108,6 +108,7 @@ impl Service for Overlay {
 impl Overlay {
     // only one panel is out at a time
     pub fn toggle_power_menu() {
+        crate::tray::ui::close();
         let mut overlay = Self::write();
 
         overlay.launcher.hide();
@@ -121,6 +122,7 @@ impl Overlay {
     }
 
     pub fn toggle_utility() {
+        crate::tray::ui::close();
         let mut overlay = Self::write();
 
         overlay.launcher.hide();
@@ -139,6 +141,7 @@ impl Overlay {
     }
 
     pub fn toggle_control_center() {
+        crate::tray::ui::close();
         let mut overlay = Self::write();
 
         overlay.launcher.hide();

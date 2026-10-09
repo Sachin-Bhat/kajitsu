@@ -1,6 +1,8 @@
 <div align="center">
-  <img src="assets/fruit-basket.svg" alt="A woven basket filled with colorful fruit, including a golden mango" width="240">
-  <h1>果実 · kajitsu</h1>
+  <p>
+    <img src="assets/fruit-basket.svg" alt="A woven basket filled with colorful fruit, including a golden mango" width="160" height="160">
+  </p>
+  <h1>kajitsu (果実)</h1>
   <p><strong>A hard fork of suzuha.</strong><br>
   A personal Wayland desktop shell written in Rust with amane, being adapted for my daily-driver compositor, Mango.</p>
 

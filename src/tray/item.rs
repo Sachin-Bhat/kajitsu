@@ -97,10 +97,89 @@ pub(crate) fn decode(values: HashMap<String, OwnedValue>) -> ItemProperties {
     }
 }
 
+pub(crate) fn plain_text(input: &str) -> String {
+    let mut text = String::new();
+    let mut rest = input;
+    while !rest.is_empty() {
+        if rest.starts_with('<') {
+            let tag_like = rest
+                .chars()
+                .nth(1)
+                .is_some_and(|c| c.is_ascii_alphabetic() || c == '/' || c == '!');
+            if tag_like && let Some(end) = rest.find('>') {
+                let tag = rest[1..end].trim().to_ascii_lowercase();
+                let name = tag.split_whitespace().next().unwrap_or_default();
+                if matches!(
+                    name,
+                    "script" | "style" | "iframe" | "object" | "svg" | "video" | "audio"
+                ) {
+                    let lower = rest.to_ascii_lowercase();
+                    rest = lower
+                        .find(&format!("</{name}"))
+                        .and_then(|start| lower[start..].find('>').map(|end| start + end + 1))
+                        .map(|end| &rest[end..])
+                        .unwrap_or_default();
+                    continue;
+                }
+                if tag.starts_with("br") {
+                    text.push('\n');
+                }
+                rest = &rest[end + 1..];
+                continue;
+            }
+        }
+        if rest.starts_with('&')
+            && let Some(end) = rest.find(';').filter(|end| *end < 16)
+        {
+            let entity = &rest[1..end];
+            let decoded = match entity {
+                "amp" => Some('&'),
+                "lt" => Some('<'),
+                "gt" => Some('>'),
+                "quot" => Some('"'),
+                "apos" => Some('\''),
+                "nbsp" => Some(' '),
+                _ => entity
+                    .strip_prefix("#x")
+                    .or_else(|| entity.strip_prefix("#X"))
+                    .and_then(|v| u32::from_str_radix(v, 16).ok())
+                    .or_else(|| entity.strip_prefix('#').and_then(|v| v.parse().ok()))
+                    .and_then(char::from_u32),
+            };
+            if let Some(character) = decoded {
+                if !character.is_control() || character == '\n' || character == '\t' {
+                    text.push(character);
+                }
+                rest = &rest[end + 1..];
+                continue;
+            }
+        }
+        let Some(character) = rest.chars().next() else {
+            break;
+        };
+        if !character.is_control() || character == '\n' || character == '\t' {
+            text.push(character);
+        }
+        rest = &rest[character.len_utf8()..];
+    }
+    text.trim().to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use zbus::zvariant::{ObjectPath, Str};
+
+    #[test]
+    fn tooltips_strip_markup_and_decode_entities_without_loading_content() {
+        assert_eq!(plain_text("<b>Mail</b> &amp; news"), "Mail & news");
+        assert_eq!(
+            plain_text("<img src='https://example.invalid/a'>Hello &#x1f600;"),
+            "Hello 😀"
+        );
+        assert_eq!(plain_text("3 < 4 &unknown;"), "3 < 4 &unknown;");
+        assert_eq!(plain_text("<script>ignored</script><b>Mail</b>"), "Mail");
+    }
 
     #[test]
     fn typed_properties_handle_missing_tooltips_and_invalid_status() {

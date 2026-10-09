@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, LazyLock, Mutex, MutexGuard, PoisonError, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -8,7 +8,7 @@ use zbus::blocking::{Connection, MessageIterator, Proxy, connection::Builder};
 use zbus::fdo::RequestNameFlags;
 use zbus::{MatchRule, Message, message::Type};
 
-use super::model::{ItemIcon, ItemKey};
+use super::model::ItemKey;
 use super::registry::Registry;
 use super::watcher::{WatcherFreedesktop, WatcherKde};
 
@@ -39,6 +39,7 @@ pub(crate) struct State {
     connection: Mutex<Option<(u64, Connection)>>,
     epoch: AtomicU64,
     reconcile: AtomicBool,
+    target_px: AtomicU32,
 }
 
 static STATE: LazyLock<Arc<State>> = LazyLock::new(|| Arc::new(State::default()));
@@ -264,7 +265,17 @@ fn run_connected(connection: Connection, state: Arc<State>) -> zbus::Result<()> 
                     && let Ok(properties) = super::item::read(&connection, &key)
                     && state.current(&key, epoch)
                 {
-                    lock(&state.registry).update(&key, properties, ItemIcon::default());
+                    let mut properties = properties;
+                    properties.tooltip.title = super::item::plain_text(&properties.tooltip.title);
+                    properties.tooltip.description =
+                        super::item::plain_text(&properties.tooltip.description);
+                    let icons = super::icons::resolve(
+                        &properties.icons,
+                        state.target_px.load(Ordering::Acquire).max(18),
+                    );
+                    if state.current(&key, epoch) {
+                        lock(&state.registry).update(&key, properties, icons);
+                    }
                 }
                 lock(&state.pending).inflight.remove(&key);
                 state.wake.notify_one();
@@ -278,6 +289,16 @@ fn run_connected(connection: Connection, state: Arc<State>) -> zbus::Result<()> 
             || last_watchers.elapsed() >= Duration::from_secs(1)
         {
             setup_watchers(&connection, &state, &mut known)?;
+            if let Ok(outputs) = crate::mango::output_geometries() {
+                let scale = outputs.iter().map(|o| o.scale).fold(1.0_f32, f32::max);
+                let target = (18.0 * scale).ceil().clamp(18.0, 1024.0) as u32;
+                if state.target_px.swap(target, Ordering::AcqRel) != target {
+                    let keys = lock(&state.registry).keys();
+                    for key in keys {
+                        state.schedule(key);
+                    }
+                }
+            }
             last_watchers = Instant::now();
         }
         let mut pending = lock(&state.pending);

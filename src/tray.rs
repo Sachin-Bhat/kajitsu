@@ -1,4 +1,6 @@
+pub(crate) mod actions;
 mod backend;
+mod icons;
 mod item;
 mod model;
 mod registry;

@@ -1,3 +1,4 @@
+use amane::Service;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, LazyLock, Mutex, MutexGuard, PoisonError, mpsc};
@@ -226,6 +227,12 @@ fn handle_signal(connection: &Connection, state: &Arc<State>, message: &Message)
                 state.wake.notify_one();
             }
         }
+    } else if interface == "com.canonical.dbusmenu"
+        && matches!(member, "LayoutUpdated" | "ItemsPropertiesUpdated")
+    {
+        let owner = header.sender().map(|s| s.as_str()).unwrap_or_default();
+        let path = header.path().map(|p| p.as_str()).unwrap_or_default();
+        super::menu::client::signal(owner, path);
     } else if WATCHERS.contains(&interface) {
         state.reconcile.store(true, Ordering::Release);
         state.wake.notify_one();
@@ -283,6 +290,7 @@ fn run_connected(connection: Connection, state: Arc<State>) -> zbus::Result<()> 
         });
     }
     let mut known = HashMap::new();
+    let mut output_names = None;
     let mut last_watchers = Instant::now() - Duration::from_secs(2);
     while !connection.is_closed() {
         if state.reconcile.swap(false, Ordering::AcqRel)
@@ -290,6 +298,7 @@ fn run_connected(connection: Connection, state: Arc<State>) -> zbus::Result<()> 
         {
             setup_watchers(&connection, &state, &mut known)?;
             if let Ok(outputs) = crate::mango::output_geometries() {
+                output_names = Some(outputs.iter().map(|o| o.name.clone()).collect::<Vec<_>>());
                 let scale = outputs.iter().map(|o| o.scale).fold(1.0_f32, f32::max);
                 let target = (18.0 * scale).ceil().clamp(18.0, 1024.0) as u32;
                 if state.target_px.swap(target, Ordering::AcqRel) != target {
@@ -320,7 +329,20 @@ fn run_connected(connection: Connection, state: Arc<State>) -> zbus::Result<()> 
             }
         }
         drop(pending);
-        super::publish(lock(&state.registry).snapshot());
+        let snapshot = lock(&state.registry).snapshot();
+        if let Some(outputs) = &output_names {
+            let keys = snapshot
+                .items
+                .iter()
+                .map(|i| i.key.clone())
+                .collect::<Vec<_>>();
+            super::ui::reconcile(
+                &keys,
+                outputs,
+                crate::settings::Settings::read().flag("bar_systray"),
+            );
+        }
+        super::publish(snapshot);
         let pending = lock(&state.pending);
         drop(
             state
@@ -348,6 +370,7 @@ pub(crate) fn run() {
                 lock(&STATE.hosts).clear();
                 *lock(&STATE.pending) = Pending::default();
                 super::publish(lock(&STATE.registry).snapshot());
+                super::ui::close();
             }
             Err(error) => {
                 let error = error.to_string();

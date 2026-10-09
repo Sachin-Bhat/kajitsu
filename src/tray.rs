@@ -1,4 +1,6 @@
 pub(crate) mod actions;
+pub(crate) mod menu;
+pub(crate) mod ui;
 mod backend;
 mod icons;
 mod item;

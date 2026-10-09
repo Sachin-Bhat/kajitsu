@@ -1,11 +1,11 @@
 use std::cell::RefCell;
 
 use amane::{
-    Battery, Center, Color, End, Memory, Padding, Parent, Pointer, Rectangle, Row, Service,
-    SpaceBetween, Stack, Text, Widget, children,
+    Battery, Center, Color, End, Memory, Monitor, Padding, Parent, Pointer, Rectangle, Row,
+    Service, SpaceBetween, Stack, Text, Widget, children,
 };
 
-use super::{pill, ring};
+use super::{pill, ring, systray};
 use crate::fonts;
 use crate::motion::{self, Glide};
 use crate::overlay::Overlay;
@@ -37,7 +37,7 @@ thread_local! {
     static RECORDING: RefCell<Option<(Glide, String)>> = const { RefCell::new(None) };
 }
 
-pub fn view(theme: &Theme, width: f32) -> Row {
+pub fn view(monitor: &Monitor, theme: &Theme, width: f32) -> Row {
     let settings = Settings::read();
 
     let mut items: Vec<Box<dyn Widget>> = Vec::new();
@@ -52,11 +52,46 @@ pub fn view(theme: &Theme, width: f32) -> Row {
         items.push(Box::new(memory(theme)));
     }
 
+    let insertion = items.len();
     if settings.flag("bar_tray") {
         items.push(Box::new(tray(theme)));
     }
 
     items.push(Box::new(Rectangle::new().width(EDGE).height(1.0)));
+
+    if settings.flag("bar_systray") {
+        let snapshot = crate::tray::Tray::read().snapshot().clone();
+        let widths: Vec<_> = items
+            .iter()
+            .map(|item| match Widget::width(item.as_ref()) {
+                amane::Size::Fixed(value) => value,
+                amane::Size::Parent => width,
+            })
+            .collect();
+        let (anchor, layout) = systray::placement(
+            &monitor.name,
+            (monitor.width as f32, monitor.height as f32),
+            (
+                settings.number("bar_height"),
+                settings.text("bar_position") == "bottom",
+            ),
+            &widths,
+            insertion,
+            snapshot.items.len(),
+        );
+        if layout.width > 0.0 {
+            items.insert(
+                insertion,
+                Box::new(systray::view(
+                    monitor,
+                    theme,
+                    &snapshot.items,
+                    anchor,
+                    layout,
+                )),
+            );
+        }
+    }
 
     Row::new(items)
         .width(width)

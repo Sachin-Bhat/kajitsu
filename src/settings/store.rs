@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use amane::Service;
 
 // every setting and the value it has until changed
-const DEFAULTS: [(&str, &str); 70] = [
+const DEFAULTS: [(&str, &str); 71] = [
     // appearance
     ("blur_strength", "1"),
     ("reduce_transparency", "false"),
@@ -31,6 +31,7 @@ const DEFAULTS: [(&str, &str); 70] = [
     ("bar_battery", "true"),
     ("bar_memory", "true"),
     ("bar_tray", "true"),
+    ("bar_systray", "true"),
     ("clock_24_hour", "false"),
     ("clock_seconds", "false"),
     // launcher

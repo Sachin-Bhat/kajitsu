@@ -4,7 +4,7 @@ pub(crate) mod ui;
 mod backend;
 mod icons;
 mod item;
-mod model;
+pub(crate) mod model;
 mod registry;
 mod watcher;
 

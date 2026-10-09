@@ -5,6 +5,7 @@ mod reveal;
 mod ring;
 mod star;
 mod system;
+mod systray;
 mod timer;
 mod workspaces;
 
@@ -78,7 +79,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let sections = Row::new(children![
         workspaces::view(monitor, &theme, third),
         center::view(&theme, third),
-        system::view(&theme, third),
+        system::view(monitor, &theme, third),
     ]);
 
     // taller than the bar and clipped, so only the corners away from the edge come out rounded

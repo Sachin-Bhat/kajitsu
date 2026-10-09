@@ -7,7 +7,7 @@ use crate::{
         ui,
     },
 };
-use amane::{Button, Center, Monitor, Pointer, Rectangle, Row, Stack, Text};
+use amane::{Button, Center, Monitor, Pointer, Rectangle, Row, Service, Stack, Text};
 use std::sync::Arc;
 
 const SLOT: f32 = 26.0;

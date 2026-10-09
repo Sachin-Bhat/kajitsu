@@ -26,7 +26,7 @@ The conversion uses native Mango workspace support from my local amane checkout.
 
 ### Included
 
-- Status bar with workspaces, system information, clock, media, and a pomodoro pill
+- Status bar with workspaces, an interactive Mango layout indicator, system information, clock, media, and a pomodoro pill
 - Liquid shader that lets the bar and panels flow into each other, with rounded screen corners
 - Application launcher with a `>` command mode and a tmux project picker
 - Control center with media controls and a cava visualizer
@@ -40,6 +40,25 @@ The conversion uses native Mango workspace support from my local amane checkout.
 - logind-driven Wayland lock screen
 - Built-in settings window
 - Optional theme integrations for WezTerm, bottom, GTK, tmux, Vesktop, Spotify, and cava
+
+### Layout switcher
+
+Each monitor's bar shows its current Mango layout beside the workspace strip.
+An outlined pane diagram accompanies the name, with rotated patterns for vertical
+layouts. The pill sizes itself to the icon and measured text with consistent padding.
+Left-click or scroll down to select the next layout; right-click or scroll up to
+select the previous one. The control cycles through the layouts reported by
+`mmsg get layouts` and wraps at either end. It follows layout changes made through
+keybindings or other Mango clients, including changes on inactive monitors.
+
+The indicator uses native Mango IPC. It shows **Layout —** with input disabled
+while layout state is unavailable, and reconnects when IPC returns. Control calls
+run off the drawing thread and confirm the clicked output before changing its
+layout. **Settings → Bar → Layout switcher** controls its visibility.
+
+Mango 0.17.5 [applies `setlayout` to the currently focused monitor](https://github.com/mangowm/mango/blob/0.17.5/src/dispatch/bind.c#L828-L845). Focus confirmation
+and layout dispatch are separate IPC calls, so moving focus during a switch can
+apply the change to the newly focused monitor.
 
 ### System tray
 
@@ -88,7 +107,7 @@ To make the IPC and Mango binding examples available in `PATH`:
 install -Dm755 target/release/kajitsu ~/.local/bin/kajitsu
 ```
 
-The tracked manifest uses `amane = { path = "../amane" }`, so changes in the local library are used on the next build. Its Mango support comes from [add-mango-workspace-support](https://github.com/Sachin-Bhat/amane/tree/add-mango-workspace-support). Cargo.lock locks external dependencies; local amane changes are deliberately not pinned. See [validation](docs/mango-validation.md) for the tested revision and remaining desktop checks.
+The tracked manifest uses `amane = { path = "../amane" }`, so changes in the local library are used on the next build. The tested revision is [1b07d1f](https://github.com/Sachin-Bhat/amane/commit/1b07d1f04b4782e9583e60b158ebe22900ef53cb) on [kajitsu-mango-local](https://github.com/Sachin-Bhat/amane/tree/kajitsu-mango-local). It includes the owned-image helpers required by the native tray, desktop lifecycle fixes, and Mango support originating from [add-mango-workspace-support](https://github.com/Sachin-Bhat/amane/tree/add-mango-workspace-support). Cargo.lock locks external dependencies; local amane changes are deliberately not pinned. See [validation](docs/mango-validation.md) for the tested revision and remaining desktop checks.
 
 Use native Cargo commands here. The amane CLI's compile/dev workflow generates a different manifest and embedded library snapshot. No amane CLI is required to launch Kajitsu or send IPC.
 
@@ -98,7 +117,7 @@ Configuration defaults to `$XDG_CONFIG_HOME/kajitsu` (or `~/.config/kajitsu`). S
 
 ### Required
 
-- **Local amane source** in `~/Documents/amane`, with Mango workspace support
+- **Local amane source** in `~/Documents/amane`, with Mango workspace support and owned-image helpers
 - **Mango** (JSON IPC, tested against installed 0.17.5)
 - **Inter Nerd Font Propo** for UI text
 - **GeistMono Nerd Font Mono** for monospace and icons

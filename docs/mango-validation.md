@@ -6,7 +6,7 @@ The source conversion is implemented on `mango-conversion`. **Kajitsu is install
 
 Validated on 2026-10-08 with the installed Mango 0.17.5. Cargo metadata resolves amane to `/home/sachin/Documents/amane/Cargo.toml`, with no registry or Git source. Kajitsu and amane must remain sibling checkouts.
 
-The local amane branch is `kajitsu-mango-local`, tested at `fdc48eedf35dd0a83d376042de9d581709180dde`. It contains the upstream Mango commit `9d36cb9d3531c55ea44b1ee485e64e4acf1eb58f`, followed by narrow fixes for subscription recovery, bounded queries, global-client occupancy, `Terminal=true` desktop-entry metadata, backlight selection, and hidden layer lifecycle. Its tracked working tree is clean; the existing untracked `.abide/` directory is outside this conversion.
+The initial desktop setup used amane branch `kajitsu-mango-local` at `fdc48eedf35dd0a83d376042de9d581709180dde`. It contains the upstream Mango commit `9d36cb9d3531c55ea44b1ee485e64e4acf1eb58f`, followed by narrow fixes for subscription recovery, bounded queries, global-client occupancy, `Terminal=true` desktop-entry metadata, backlight selection, and hidden layer lifecycle. The later desktop additions below use its owned-image extension. The existing untracked `.abide/` directory is outside this conversion.
 
 | Check | Result |
 | --- | --- |
@@ -28,6 +28,26 @@ The exported conversion source at `d5956ec` independently passed all **24 tests*
 The independent review found a recorder-panel deadlock from nested read guards and an editable audio mode during asynchronous startup. Both were fixed in one pass: a contention regression reproduced the deadlock before passing, and a startup-state regression now verifies that pending capture keeps its chosen audio. The panel snapshots state under one read guard, renders after dropping it, shows “Starting…”, and blocks audio changes until startup finishes. All 24 tests passed after these fixes. The subsequent desktop setup adds a timer sound search regression and a successful real capture check.
 
 Tests cover exact IPC argument framing, stale socket recovery, XDG path separation, tag presentation and conservative desktop occupancy, fresh output-query failure, bounded replies, palette serialization, atomic export failure/retry, literal tmux session arguments, and bottom preference preservation. The amane tests cover monitor/tag identity, multi-selection, urgency parsing, monitor focus confirmation, subscription EOF/recovery, malformed events, bounded queries, and global windows.
+
+## Fonts, layout switcher, and native tray
+
+Validated on 2026-10-09 against local amane
+[1b07d1f](https://github.com/Sachin-Bhat/amane/commit/1b07d1f04b4782e9583e60b158ebe22900ef53cb)
+on [kajitsu-mango-local](https://github.com/Sachin-Bhat/amane/tree/kajitsu-mango-local).
+The framework extension supplies owned RGBA/file images for changing tray icons.
+
+- Kajitsu: 60 tests, strict all-target/all-feature Clippy, formatting, and the locked release/fixture build pass.
+- Amane: 42 tests and formatting pass. The 13 known framework Clippy diagnostics remain; all other lint categories pass strict checks.
+- Fontconfig: the committed example matches the installed config; monospace, sans-serif, and serif resolve to GeistMono Nerd Font Mono, Inter Nerd Font Propo, and Tinos Nerd Font Propo.
+- Layout: the isolated two-output regression verifies clicks, wheel direction, wraparound, external updates, vector icons, and visibility at scales 1 and 1.25. Both physical bars were visually checked.
+- Tray: controlled native calls verify menus, check/radio icons, keyboard navigation, submenus below the first page, disabled rows, bar dismissal, tooltips, both wheel axes, overflow, and icon/status updates. Model regressions reject moved IDs and actions beneath hidden/disabled ancestors. Watcher/owner/bus changes, stalls, stale jobs, auto-hide, top/bottom placement, and output teardown pass. The existing 12-cycle panel regression also passes.
+- Installation: the running release matches the tested binary on DP-9 and eDP-1. A controlled fixture adds four icons and removes them on exit while the existing app icon remains. IPC and watcher host registration respond.
+
+Mango's focus confirmation and layout dispatch are separate requests; a concurrent
+focus change can apply the switch to another output. XEmbed-only tray icons and
+animated attention movies are outside this tray implementation. The existing
+authentication, power, and physical-hotplug checks remain manual.
+See [desktop setup](desktop-setup.md) for controls, exact backup paths, and rollback.
 
 ## Desktop and app checks
 

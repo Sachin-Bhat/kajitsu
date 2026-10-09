@@ -39,6 +39,33 @@ Original configuration files and desktop font settings are recorded in
 `~/.local/state/kajitsu/setup-backups/fonts-20261009-125314/manifest.json`.
 `~/.local/state/kajitsu/font-setup-backup-path` records that backup directory.
 
+## Layout switcher
+
+Added on 2026-10-09. Each output's bar shows its current Mango layout beside the
+workspace strip, with a vector pane diagram and its name. The pill width follows
+the icon and actual font metrics, with 10px padding on each side. Vertical layouts
+use rotated diagrams. Left-click or scroll down cycles forward; right-click or scroll
+up cycles backward. The control wraps through all layouts from `mmsg get layouts`
+and updates after external keybindings or IPC commands. Disable it under
+**Settings → Bar → Layout switcher**.
+
+The control shows **Layout —** and disables input while Mango state is unavailable.
+IPC calls run outside the drawing thread. Mango 0.17.5's layout dispatch targets
+the focused monitor: focus is checked before dispatch, but a focus change between
+those separate requests can send the change to another monitor.
+
+The verified release was installed and Kajitsu restarted in the unlocked session.
+The indicator rendered **Tile** on DP-9 and **V. Scroller** on eDP-1, matching their
+native monitor state at scales 1 and 1.25. The initial install's previous binary
+is backed up in `~/.local/state/kajitsu/setup-backups/layout-20261009-132924`.
+The icon and adaptive-width update was also installed on 2026-10-09; all 14
+diagrams were visually checked at both scales, and **Tile** measured about 65px
+wide, including its icon and padding. It rendered correctly on both physical
+outputs. This update's previous binary is backed up in
+`~/.local/state/kajitsu/setup-backups/layout-20261009-133813`; the manifest records
+both release hashes. `~/.local/state/kajitsu/layout-setup-backup-path` records
+the latest backup directory.
+
 ## System tray
 
 The native application tray uses StatusNotifier and DBusMenu on the session bus.
@@ -130,7 +157,8 @@ After rebuilding the local source, update the installed binary and runtime asset
 ```sh
 cd ~/Documents/kajitsu
 cargo build --release --locked
-install -Dm755 target/release/kajitsu ~/.local/bin/kajitsu
+install -Dm755 target/release/kajitsu ~/.local/bin/kajitsu.new
+mv ~/.local/bin/kajitsu.new ~/.local/bin/kajitsu
 install -Dm644 shaders/liquid.wgsl ~/.config/kajitsu/shaders/liquid.wgsl
 install -Dm644 cava.conf ~/.config/kajitsu/cava.conf
 kajitsu-restart
@@ -148,7 +176,7 @@ Rollback restores the setup's original configuration snapshots. It leaves instal
 
 Kajitsu rendered on both physical outputs, DP-9 and eDP-1, at their existing scales. It owns the desktop notification service, responds to native IPC, and generated each enabled app palette. WezTerm loaded the updated Lua configuration, and a temporary tmux server loaded the generated status colors. The file chooser portal exposes its expected interface; elogind reports poweroff, reboot, and suspend available. Those power actions were not executed.
 
-A disposable two-output Mango session verified panel IPC, Cava output, and native recording start/stop. FFprobe confirmed a playable H.264 MP4 at 1280×720. Converter readiness checks produced nonempty outputs for all 16 configured FFmpeg formats, an ImageMagick WebP, and a LibreOffice PDF. The timer sound opened through PipeWire at zero volume. Kajitsu passes 25 tests and strict Clippy; amane passes 39 library tests. Formatting and the release build pass. Standalone amane strict Clippy retains 13 diagnostics also present at its prior committed baseline.
+A disposable two-output Mango session verified panel IPC, Cava output, and native recording start/stop. FFprobe confirmed a playable H.264 MP4 at 1280×720. Converter readiness checks produced nonempty outputs for all 16 configured FFmpeg formats, an ImageMagick WebP, and a LibreOffice PDF. The timer sound opened through PipeWire at zero volume. Kajitsu passes 60 tests and strict Clippy; amane passes 42 library tests. Formatting and the release build pass. Standalone amane strict Clippy retains 13 diagnostics also present at its prior committed baseline.
 
 Rapid panel toggles exposed an inherited Wayland configure-serial failure. Amane now retires and recreates hidden layer roles after dispatching the current event batch and exits on fatal protocol errors. Kajitsu keeps dismissal mapped with inactive input disabled, preserving clicks on reopened panels. The regression check covers 12 rapid show/hide cycles across four panels on two isolated outputs at scales 1 and 1.25, plus inside/outside pointer clicks. Run it after building:
 
@@ -157,5 +185,16 @@ python3 scripts/check-mango-panels.py
 ```
 
 It needs Mango/mmsg, grim, `cc`, `pkg-config`, `wayland-scanner`, and Wayland client development files. It uses the virtual-pointer protocol cached by Cargo when building Kajitsu. It launches and cleans up its own headless Mango compositor, DBus session, and temporary state without changing the daily desktop. Role recreation initializes a fresh rendering surface when a layer hides; longer daily performance checks remain useful.
+
+The layout regression uses the same isolated setup to verify left/right clicks,
+wheel scrolling, wraparound, external layout updates, rendered labels, and the
+visibility setting on two outputs at scales 1 and 1.25:
+
+```sh
+python3 scripts/check-mango-layouts.py
+```
+
+It confirms that switching one output leaves the other unchanged during ordinary
+interaction. The inter-request focus race described above remains possible.
 
 Authenticated lock/unlock, suspend/resume, physical hotplug, recording audio modes/output removal, and extended daily workflows remain manual validation items. See [Mango validation](mango-validation.md).

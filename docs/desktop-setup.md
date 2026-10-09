@@ -28,6 +28,9 @@ plain text after 400ms and take no input. Menus support disabled/hidden entries,
 separators, checkbox/radio state, icons, live updates, and lazy side submenus.
 Arrow keys, Home/End, Enter/Space, Escape, and outside-click work in the menu;
 overflow also supports keyboard selection. Long content scrolls within the output.
+Each submenu keeps its parent's scroll position. Clicking the bar dismisses the
+menu while preserving the clicked control's action. Refreshed menus validate
+unique row IDs and reject actions beneath hidden or disabled ancestors.
 
 Settings → Bar has separate **System tray** (`bar_systray=true`) and
 **Utility shortcuts** (`bar_tray`) switches. Disabling the tray closes its popup
@@ -57,9 +60,24 @@ compositor are not used.
 
 Local amane includes commit `1b07d1f` for owned RGBA/file images. Kajitsu's tray
 checks and the existing panel/layout regressions complement amane's image tests.
+The final tray build passes 60 Kajitsu tests, 42 amane tests, strict Kajitsu Clippy,
+formatting, and the release/fixture build. The complete native tray runner,
+12-cycle panel regression, and both-output layout regression pass.
 Standalone amane strict Clippy still has the 13 confirmed pre-existing diagnostics;
 all other lint categories are checked strictly. Physical authentication, power
 actions, and hardware hotplug remain the manual checks listed below.
+
+The reviewed release is installed at `~/.local/bin/kajitsu`. Cropped bar captures
+confirmed tray icons and the retained Artix/layout controls on DP-9 (scale 1) and
+eDP-1 (scale 1.25). A controlled fixture registered four icons, then disappeared
+after exit while the existing application's icon remained. The running executable
+matches the tested release; IPC and watcher host registration respond.
+
+The prior binary is backed up at
+`~/.local/state/kajitsu/setup-backups/systray-20261009-165440/kajitsu`.
+Its manifest records both hashes; `~/.local/state/kajitsu/systray-setup-backup-path`
+points to the backup directory. To restore, stop Kajitsu, copy that backup binary
+to `~/.local/bin/kajitsu`, and run `~/.local/bin/kajitsu-start`.
 
 ## Shortcuts
 

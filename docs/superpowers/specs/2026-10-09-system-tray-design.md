@@ -2,7 +2,7 @@
 
 Date: 2026-10-09
 
-Status: spec and plan approved; native implementation in progress.
+Status: implemented, reviewed, and installed; native and physical-output verification passed.
 
 ## Intended outcome
 

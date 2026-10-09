@@ -16,16 +16,31 @@ from pathlib import Path
 
 def build_pointer(root, repo):
     cargo_home = Path(os.environ.get("CARGO_HOME", str(Path.home() / ".cargo")))
-    protocols = list(cargo_home.glob("registry/src/*/wayland-protocols-wlr-*/wlr-protocols/unstable/wlr-virtual-pointer-unstable-v1.xml"))
+    protocols = list(
+        cargo_home.glob(
+            "registry/src/*/wayland-protocols-wlr-*/wlr-protocols/unstable/wlr-virtual-pointer-unstable-v1.xml"
+        )
+    )
     if not protocols:
         raise RuntimeError("Build Kajitsu first so Cargo caches the wlr virtual-pointer protocol")
-    protocol = sorted(protocols)[-1]
+    protocol = max(protocols)
     for mode, filename in [("client-header", "pointer-protocol.h"), ("private-code", "pointer-protocol.c")]:
         subprocess.run(["wayland-scanner", mode, str(protocol), str(root / filename)], check=True)
     flags = subprocess.check_output(["pkg-config", "--cflags", "--libs", "wayland-client"], text=True)
     binary = root / "mango-pointer"
-    subprocess.run(["cc", "-I", str(root), str(repo / "scripts/mango-pointer.c"),
-                    str(root / "pointer-protocol.c"), "-o", str(binary), *shlex.split(flags)], check=True)
+    subprocess.run(
+        [
+            "cc",
+            "-I",
+            str(root),
+            str(repo / "scripts/mango-pointer.c"),
+            str(root / "pointer-protocol.c"),
+            "-o",
+            str(binary),
+            *shlex.split(flags),
+        ],
+        check=True,
+    )
     return binary
 
 
@@ -37,7 +52,7 @@ def panel_pixel(env, output):
     width, height = map(int, header.groups())
     # A plain calendar background pixel, away from date text and buttons.
     offset = header.end() + ((height * 3 // 4) * width + width - 30) * 3
-    return data[offset:offset + 3]
+    return data[offset : offset + 3]
 
 
 def click(pointer, x, y):
@@ -143,6 +158,7 @@ def main():
                             result = subprocess.run(
                                 [str(binary), "ipc", "call", target, action],
                                 env=env,
+                                check=True,
                                 capture_output=True,
                                 text=True,
                                 timeout=5,
@@ -159,32 +175,54 @@ def main():
                 hidden = panel_pixel(env, output)
                 # Complete a hide/reopen to exercise retirement, not just IPC acceptance.
                 for action in ["show", "hide", "show"]:
-                    subprocess.run([str(binary), "ipc", "call", "utility", action], env=env,
-                                   capture_output=True, check=True, timeout=5)
+                    subprocess.run(
+                        [str(binary), "ipc", "call", "utility", action],
+                        env=env,
+                        capture_output=True,
+                        check=True,
+                        timeout=5,
+                    )
                     time.sleep(1)
                 opened = panel_pixel(env, output)
                 assert opened != hidden, "Utility panel did not appear"
                 # Keep the pointer connected: disconnecting synthesizes leave,
                 # which intentionally closes hovered panels before the assertion.
-                with subprocess.Popen([str(pointer), output, str(width), str(height)], env=env,
-                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True) as device:
+                with subprocess.Popen(
+                    [str(pointer), output, str(width), str(height)],
+                    env=env,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    text=True,
+                ) as device:
                     # Blank notification space avoids changing a control or hover color.
                     click(device, width - 50, height // 3)
                     time.sleep(1)
                     assert panel_pixel(env, output) == opened, "Clicking inside a reopened panel dismissed it"
-                    subprocess.run([str(binary), "ipc", "call", "utility", "hide"], env=env,
-                                   capture_output=True, check=True, timeout=5)
+                    subprocess.run(
+                        [str(binary), "ipc", "call", "utility", "hide"],
+                        env=env,
+                        capture_output=True,
+                        check=True,
+                        timeout=5,
+                    )
                     time.sleep(1)
                     click(device, width // 2, height // 2)
                     # Open with the pointer already outside: the next click
                     # exercises dismissal rather than the hover-leave behavior.
-                    subprocess.run([str(binary), "ipc", "call", "utility", "show"], env=env,
-                                   capture_output=True, check=True, timeout=5)
+                    subprocess.run(
+                        [str(binary), "ipc", "call", "utility", "show"],
+                        env=env,
+                        capture_output=True,
+                        check=True,
+                        timeout=5,
+                    )
                     time.sleep(1)
                     click(device, width // 2, height // 2)
                     time.sleep(1)
                     assert panel_pixel(env, output) == hidden, "Clicking outside did not dismiss the panel"
-                print(f"Passed: {args.cycles} rapid show/hide cycles on two outputs, plus inside/outside pointer clicks")
+                print(
+                    f"Passed: {args.cycles} rapid show/hide cycles on two outputs, plus inside/outside pointer clicks"
+                )
             except Exception:
                 print((root / "shell.log").read_bytes()[:4096].decode(errors="replace"))
                 raise

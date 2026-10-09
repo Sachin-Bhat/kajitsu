@@ -188,7 +188,10 @@ fn slot(workspace: &Workspace, theme: &Theme, style: &str, single: bool) -> Rect
             Color::TRANSPARENT
         })
         .cursor(Pointer)
-        .on_click(move |_| Workspaces::focus(id))
+        .on_click(move |_| {
+            crate::tray::ui::close();
+            Workspaces::focus(id);
+        })
         .align_child(Center, Center)
         .child(mark)
 }

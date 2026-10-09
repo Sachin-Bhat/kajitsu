@@ -3,6 +3,7 @@ use super::{
     model::{ItemKey, SlotAnchor},
 };
 use amane::Service;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::{
     Arc,
     atomic::{AtomicU64, Ordering},
@@ -18,7 +19,25 @@ pub(crate) struct MenuSession {
     pub tree: Option<Arc<MenuTree>>,
     pub path: Vec<i32>,
     pub selected: Option<i32>,
-    pub scroll_rows: usize,
+    pub scroll_rows: BTreeMap<i32, usize>,
+}
+impl MenuSession {
+    pub fn scroll_offset(&self, parent: i32) -> usize {
+        self.scroll_rows.get(&parent).copied().unwrap_or(0)
+    }
+    pub fn scroll(&mut self, parent: i32, delta: isize, total: usize, visible_count: usize) {
+        let Some(depth) = self.path.iter().position(|id| *id == parent) else {
+            return;
+        };
+        let offset = self.scroll_rows.entry(parent).or_default();
+        *offset = offset
+            .saturating_add_signed(delta)
+            .min(total.saturating_sub(visible_count));
+        if self.path.len() > depth + 1 {
+            self.path.truncate(depth + 1);
+            self.selected = None;
+        }
+    }
 }
 #[derive(Clone)]
 pub(crate) struct OverflowSession {
@@ -124,7 +143,6 @@ impl TrayUi {
         };
         if key == amane::Key::Left && menu.path.len() > 1 {
             menu.selected = menu.path.pop();
-            menu.scroll_rows = 0;
             return Navigation::None;
         }
         let Some(parent) = menu.path.last().and_then(|id| tree.nodes.get(id)) else {
@@ -166,10 +184,11 @@ impl TrayUi {
         };
         menu.selected = Some(actions[target].id);
         if let Some(index) = rows.iter().position(|n| Some(n.id) == menu.selected) {
-            if index < menu.scroll_rows {
-                menu.scroll_rows = index;
-            } else if index >= menu.scroll_rows + visible_count {
-                menu.scroll_rows = index + 1 - visible_count.max(1);
+            let offset = menu.scroll_rows.entry(parent.id).or_default();
+            if index < *offset {
+                *offset = index;
+            } else if index >= *offset + visible_count {
+                *offset = index + 1 - visible_count.max(1);
             }
         }
         Navigation::None
@@ -196,7 +215,7 @@ impl TrayUi {
             tree: None,
             path: vec![0],
             selected: None,
-            scroll_rows: 0,
+            scroll_rows: BTreeMap::new(),
         }));
         self.tooltip = None;
         request
@@ -240,12 +259,19 @@ impl TrayUi {
         if parent == 0
             && let Some(old) = &menu.tree
         {
+            // Incoming IDs define their new parents; cached branches must not claim them.
+            let refreshed: HashSet<_> = merged.nodes.keys().copied().collect();
             for node in merged.nodes.values_mut() {
                 if node.has_submenu
                     && node.children.is_empty()
                     && let Some(previous) = old.nodes.get(&node.id)
                 {
-                    node.children = previous.children.clone();
+                    node.children = previous
+                        .children
+                        .iter()
+                        .copied()
+                        .filter(|id| !refreshed.contains(id))
+                        .collect();
                 }
             }
             let mut pending: Vec<_> = merged
@@ -260,20 +286,24 @@ impl TrayUi {
                     if merged.nodes.len() >= 512 {
                         return false;
                     }
+                    let mut node = node.clone();
+                    node.children.retain(|child| !refreshed.contains(child));
                     pending.extend(node.children.iter().copied());
-                    merged.nodes.insert(id, node.clone());
+                    merged.nodes.insert(id, node);
                 }
             }
         }
-        fn valid_depth(tree: &MenuTree, id: i32, depth: usize) -> bool {
+        fn valid_tree(tree: &MenuTree, id: i32, depth: usize, seen: &mut HashSet<i32>) -> bool {
             depth <= 16
+                && seen.insert(id)
                 && tree.nodes.get(&id).is_some_and(|node| {
                     node.children
                         .iter()
-                        .all(|child| valid_depth(tree, *child, depth + 1))
+                        .all(|child| valid_tree(tree, *child, depth + 1, seen))
                 })
         }
-        if !valid_depth(&merged, merged.root, 1) {
+        let mut seen = HashSet::new();
+        if !valid_tree(&merged, merged.root, 1, &mut seen) || seen.len() != merged.nodes.len() {
             return false;
         }
         let keep = menu
@@ -281,15 +311,22 @@ impl TrayUi {
             .iter()
             .enumerate()
             .take_while(|(i, id)| {
-                merged.nodes.contains_key(id)
-                    && (*i == 0
-                        || merged
-                            .nodes
-                            .get(&menu.path[*i - 1])
-                            .is_some_and(|n| n.children.contains(id)))
+                merged.nodes.get(id).is_some_and(|n| {
+                    *i == 0
+                        || (n.enabled
+                            && n.visible
+                            && n.has_submenu
+                            && n.kind != MenuKind::Separator)
+                }) && (*i == 0
+                    || merged
+                        .nodes
+                        .get(&menu.path[*i - 1])
+                        .is_some_and(|n| n.children.contains(id)))
             })
             .count();
         menu.path.truncate(keep);
+        menu.scroll_rows
+            .retain(|id, _| merged.nodes.contains_key(id));
         if menu.path.is_empty() {
             menu.path.push(0);
         }
@@ -312,11 +349,29 @@ impl TrayUi {
         true
     }
     pub fn row_valid(&self, request: u64, row_id: i32) -> bool {
+        fn actionable(tree: &MenuTree, id: i32, target: i32, depth: usize) -> bool {
+            if depth > 16 {
+                return false;
+            }
+            let Some(node) = tree.nodes.get(&id) else {
+                return false;
+            };
+            if !node.enabled || !node.visible || node.kind == MenuKind::Separator {
+                return false;
+            }
+            if id == target {
+                return id != tree.root;
+            }
+            node.has_submenu
+                && node
+                    .children
+                    .iter()
+                    .any(|child| actionable(tree, *child, target, depth + 1))
+        }
         self.menu()
             .filter(|m| m.request == request)
             .and_then(|m| m.tree.as_ref())
-            .and_then(|t| t.nodes.get(&row_id))
-            .is_some_and(|n| n.enabled && n.visible && n.kind != MenuKind::Separator)
+            .is_some_and(|t| actionable(t, t.root, row_id, 1))
     }
     pub fn reconcile(&mut self, live: &[ItemKey], outputs: &[String], enabled: bool) {
         if !enabled {
@@ -397,7 +452,6 @@ pub(crate) fn enter_submenu(request: u64, row_id: i32) {
         }
         current.path.push(row_id);
         current.selected = None;
-        current.scroll_rows = 0;
     } else {
         return;
     }
@@ -646,5 +700,106 @@ mod tests {
         assert!(!ui.holds_bar("eDP-1"));
         ui.reconcile(&[key(":1.1")], &["eDP-1".into()], true);
         assert!(ui.popup.is_none());
+    }
+
+    #[test]
+    fn disabled_or_hidden_ancestor_closes_submenu_and_rejects_child_actions() {
+        for property in ["enabled", "visible"] {
+            let mut ui = TrayUi::default();
+            let request = ui.begin_menu(key(":1.1"), anchor(), "/Menu".into());
+            let layout = || {
+                node(
+                    0,
+                    "",
+                    vec![node(1, "Parent", vec![node(2, "Child", vec![])])],
+                )
+            };
+            assert!(ui.accept_layout(request, 0, decode_layout(1, layout()).unwrap()));
+            ui.menu_mut().unwrap().path.push(1);
+            ui.menu_mut().unwrap().selected = Some(2);
+            let mut branch = node(1, "Parent", vec![node(2, "Child", vec![])]);
+            branch.1.insert(property.into(), OwnedValue::from(false));
+            assert!(ui.accept_layout(
+                request,
+                0,
+                decode_layout(2, node(0, "", vec![branch])).unwrap()
+            ));
+            assert_eq!(ui.menu().unwrap().path, vec![0], "{property}");
+            assert!(!ui.row_valid(request, 2), "{property}");
+            assert!(matches!(
+                ui.navigate(amane::Key::Enter, 10),
+                Navigation::None
+            ));
+        }
+    }
+
+    #[test]
+    fn moved_row_is_not_retained_under_its_cached_parent() {
+        use zbus::zvariant::Str;
+        let mut ui = TrayUi::default();
+        let request = ui.begin_menu(key(":1.1"), anchor(), "/Menu".into());
+        assert!(
+            ui.accept_layout(
+                request,
+                0,
+                decode_layout(
+                    1,
+                    node(
+                        0,
+                        "",
+                        vec![node(
+                            1,
+                            "Parent",
+                            vec![node(2, "Moved", vec![]), node(3, "Retained", vec![])]
+                        )]
+                    )
+                )
+                .unwrap()
+            )
+        );
+        ui.menu_mut().unwrap().path.push(1);
+        ui.menu_mut().unwrap().selected = Some(3);
+        let mut lazy = node(1, "Parent", vec![]);
+        lazy.1.insert(
+            "children-display".into(),
+            OwnedValue::from(Str::from("submenu")),
+        );
+        assert!(ui.accept_layout(
+            request,
+            0,
+            decode_layout(2, node(0, "", vec![lazy, node(2, "Moved", vec![])])).unwrap()
+        ));
+        let menu = ui.menu().unwrap();
+        let tree = menu.tree.as_ref().unwrap();
+        assert_eq!(tree.nodes[&1].children, vec![3]);
+        assert_eq!(menu.selected, Some(3));
+        assert_eq!(
+            tree.nodes
+                .values()
+                .filter(|n| n.children.contains(&2))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn returning_from_submenu_keeps_the_scrolled_parent_visible() {
+        let mut ui = TrayUi::default();
+        let request = ui.begin_menu(key(":1.1"), anchor(), "/Menu".into());
+        let mut rows: Vec<_> = (1..20).map(|id| node(id, "Row", vec![])).collect();
+        rows.push(node(20, "Last submenu", vec![node(21, "Child", vec![])]));
+        assert!(ui.accept_layout(request, 0, decode_layout(1, node(0, "", rows)).unwrap()));
+        ui.navigate(amane::Key::End, 5);
+        assert_eq!(ui.menu().unwrap().selected, Some(20));
+        // Emulate entering and scrolling the child, then returning to its parent.
+        ui.menu_mut().unwrap().path.push(20);
+        ui.menu_mut().unwrap().selected = Some(21);
+        ui.menu_mut().unwrap().scroll(20, 3, 10, 5);
+        ui.navigate(amane::Key::Left, 5);
+        let menu = ui.menu().unwrap();
+        assert_eq!(menu.path, vec![0]);
+        assert_eq!(menu.selected, Some(20));
+        assert_eq!(menu.scroll_offset(0), 15);
+        assert_eq!(menu.scroll_offset(20), 3);
     }
 }

@@ -38,6 +38,7 @@ pub(crate) struct State {
     malformed: bool,
     stall_ms: u64,
     long_menu: bool,
+    long_submenu: bool,
 }
 pub(crate) struct Item {
     id: String,
@@ -279,12 +280,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "menu_update" => s.menu_version += 1,
             "menu_bad" => s.malformed = true,
             "long_menu" => s.long_menu = true,
+            "long_submenu" => {
+                s.long_menu = true;
+                s.long_submenu = true;
+            }
             "stall" => s.stall_ms = command["milliseconds"].as_u64().unwrap_or(0),
             _ => continue,
         }
         let generation = s.generation;
         drop(s);
-        if matches!(op.as_str(), "menu_update" | "menu_bad" | "long_menu") {
+        if matches!(
+            op.as_str(),
+            "menu_update" | "menu_bad" | "long_menu" | "long_submenu"
+        ) {
             let menu_path = format!("/Menus/{id}");
             connection.emit_signal(
                 None::<&str>,

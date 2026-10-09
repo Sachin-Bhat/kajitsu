@@ -52,7 +52,9 @@ impl Menu {
                 (parent, HashMap::new(), vec![OwnedValue::from(3_i32)]),
             ));
         }
-        let mut rows = if parent == 6 {
+        let mut rows = if parent == 140 {
+            vec![node(1400, "Scrolled submenu child")]
+        } else if parent == 6 {
             vec![node(60, "_Child"), node(61, "Other child")]
         } else {
             let mut disabled = node(2, "Disabled");
@@ -97,6 +99,10 @@ impl Menu {
         }
         if state.long_menu && parent == 0 {
             rows.extend((101..=140).map(|id| node(id, &format!("Long menu row {id}"))));
+        }
+        if state.long_submenu && parent == 0 {
+            let last = rows.iter_mut().find(|row| row.0 == 140).unwrap();
+            string(last, "children-display", "submenu");
         }
         let children = rows
             .into_iter()

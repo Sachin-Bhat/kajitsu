@@ -143,7 +143,10 @@ fn media(theme: &Theme) -> Rectangle {
 
     pill::view(width, theme.surface)
         .cursor(Pointer)
-        .on_click(|_| Media::play_pause())
+        .on_click(|_| {
+            crate::tray::ui::close();
+            Media::play_pause();
+        })
         .align_child(Center, Center)
         .child(Row::new(children![icon, label]).gap(7.0).align(Center))
 }

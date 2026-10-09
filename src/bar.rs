@@ -139,6 +139,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .opacity(Curtain::read().items.value())
                 .clip()
                 .on_hover(reveal::hover)
+                .on_click(|_| crate::tray::ui::close())
                 .child(
                     Rectangle::new()
                         .width(Parent)

@@ -101,7 +101,7 @@ pub(crate) fn view(monitor: &Monitor) -> LayerWindow {
                     .child(Stack::new(panels).width(Parent).height(Parent));
             };
             let mut previous: Option<(PopupRect, Vec<i32>, usize)> = None;
-            for (depth, parent_id) in menu.path.iter().enumerate() {
+            for parent_id in &menu.path {
                 let Some(parent) = tree.nodes.get(parent_id) else {
                     break;
                 };
@@ -133,12 +133,9 @@ pub(crate) fn view(monitor: &Monitor) -> LayerWindow {
                     geometry::place_root(&anchor, desired, size, bottom)
                 };
                 let visible_count = ((rect.height - PAD * 2.0) / ROW).floor().max(1.0) as usize;
-                let offset = if depth + 1 == menu.path.len() {
-                    menu.scroll_rows
-                        .min(nodes.len().saturating_sub(visible_count))
-                } else {
-                    0
-                };
+                let offset = menu
+                    .scroll_offset(*parent_id)
+                    .min(nodes.len().saturating_sub(visible_count));
                 let rows: Vec<Box<dyn Widget>> = if nodes.is_empty() {
                     vec![Box::new(
                         Rectangle::new()
@@ -164,16 +161,19 @@ pub(crate) fn view(monitor: &Monitor) -> LayerWindow {
                         .collect()
                 };
                 let request = menu.request;
+                let parent_id = *parent_id;
                 let total = nodes.len();
                 panels.push(Box::new(
                     surface(rect, &theme)
                         .on_scroll(move |scroll| {
                             let mut ui = TrayUi::write();
                             if let Some(menu) = ui.menu_mut().filter(|m| m.request == request) {
-                                menu.scroll_rows = menu
-                                    .scroll_rows
-                                    .saturating_add_signed(scroll.y.round() as isize)
-                                    .min(total.saturating_sub(visible_count));
+                                menu.scroll(
+                                    parent_id,
+                                    scroll.y.round() as isize,
+                                    total,
+                                    visible_count,
+                                );
                             }
                         })
                         .child(Column::new(rows)),

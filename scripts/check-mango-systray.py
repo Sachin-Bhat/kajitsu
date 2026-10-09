@@ -402,6 +402,14 @@ def main():
                 lambda monitor=monitor, crop=crop, before=before: region(env, monitor, crop) == before,
                 shell,
             )
+            for x, label in [(width // 3 - 12, "blank bar"), (190, "workspace"), (105, "layout")]:
+                expect_call(fixture_log, "GetLayout", device, slot[0], 20, "right", "named")
+                helper.wait_for(lambda output=output: layer("kajitsu-tray-menu", output), shell)
+                point(device, x, 20)
+                try:
+                    helper.wait_for(lambda output=output: not layer("kajitsu-tray-menu", output), shell)
+                except RuntimeError as error:
+                    raise AssertionError(f"{label} click retained keyboard focus") from error
             point(device, slot[1], 20, "move")
             time.sleep(0.15)
             assert region(env, monitor, crop) == before, "Tooltip showed before its delay"
@@ -464,6 +472,28 @@ def main():
         time.sleep(0.2)
         call = expect_call(fixture_log, "Event", device, width - 300, 65, item="menu")
         assert call["args"][0] == 102, call
+        helper.wait_for(lambda: not layer("kajitsu-tray-menu"), shell)
+        control(fixture, op="long_submenu", id="menu")
+        expect_call(fixture_log, "GetLayout", device, width - 146, 20, item="menu")
+        helper.wait_for(lambda: layer("kajitsu-tray-menu"), shell)
+        point(device, 30, 350, "move")
+        key(keyboard, "end")
+        time.sleep(0.2)
+        parent_crop = (width - 410, 55, 395, 120)
+        parent_before = region(env, monitor, parent_crop)
+        key(keyboard, "right")
+        helper.wait_for(
+            lambda: any(r["method"] == "GetLayout" and r["args"] == [140] for r in logs(fixture_log)), shell
+        )
+        time.sleep(0.2)
+        assert region(env, monitor, parent_crop) == parent_before, "Opening a submenu reset its parent's scroll"
+        key(keyboard, "left")
+        time.sleep(0.2)
+        assert region(env, monitor, parent_crop) == parent_before, "Returning from a submenu reset its parent's scroll"
+        key(keyboard, "right")
+        key(keyboard, "enter")
+        helper.wait_for(lambda: any(r["method"] == "Event" and r["args"][0] == 1400 for r in logs(fixture_log)), shell)
+        helper.wait_for(lambda: not layer("kajitsu-tray-menu"), shell)
         print("Passed: long menus scroll by pointer and reveal the final keyboard selection", flush=True)
         print(
             "Passed: named/pixel icon updates, malformed pixels, passive/active ordering and live menu updates",

@@ -14,6 +14,31 @@ The selected wallpaper is the existing `artix-black-4k.png` from `~/Pictures/Wal
 
 The power-menu button uses the Artix logo. Power actions use the login1 DBus interface provided by elogind on this dinit system. Startup selects `AMANE_BACKLIGHT_DEVICE=amdgpu_bl1` so brightness controls the laptop panel rather than the separate NVIDIA backlight device.
 
+## Fonts
+
+The desktop font defaults are **GeistMono Nerd Font Mono** for monospace,
+**Inter Nerd Font Propo** for sans-serif, and **Tinos Nerd Font Propo** for serif.
+Tinos's regular, bold, italic, and bold-italic Propo styles were installed from
+the official Nerd Fonts v3.5.1 release into `~/.local/share/fonts/TinosNerdFontPropo`.
+The archive's published SHA-256 was verified; its release metadata and Apache
+license are stored with the installed fonts.
+
+`~/.config/fontconfig/conf.d/60-kajitsu-fonts.conf` matches the
+[repository example](../examples/fontconfig/60-kajitsu-fonts.conf). It applies
+the three choices to generic font requests while preserving language fallbacks
+and the existing font rendering settings. GTK 3, GTK 4, and the saved xsettingsd
+configuration use Inter at size 11. Desktop interface settings use Inter 11,
+Tinos 11 for documents, and GeistMono 11 for monospace. WezTerm continues to use
+its existing GeistMono size 13 configuration; bottom inherits that font.
+
+All three generic families resolved to their selected fonts in regular, bold,
+italic, and bold-italic styles. Explicit Tinos requests resolved to the installed
+Propo files. Restart applications that have already loaded their fonts.
+
+Original configuration files and desktop font settings are recorded in
+`~/.local/state/kajitsu/setup-backups/fonts-20261009-125314/manifest.json`.
+`~/.local/state/kajitsu/font-setup-backup-path` records that backup directory.
+
 ## System tray
 
 The native application tray uses StatusNotifier and DBusMenu on the session bus.

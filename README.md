@@ -108,6 +108,28 @@ Configuration defaults to `$XDG_CONFIG_HOME/kajitsu` (or `~/.config/kajitsu`). S
 
 bottom inherits its font from WezTerm. The installed font files cover all 87 icon codepoints used by the shell; graphical checks are recorded separately.
 
+### Desktop font defaults
+
+The desktop font choices are **GeistMono Nerd Font Mono** for monospace,
+**Inter Nerd Font Propo** for sans-serif, and **Tinos Nerd Font Propo** for serif.
+Install these families before applying the [fontconfig example](examples/fontconfig/60-kajitsu-fonts.conf).
+Tinos is available from the [official Nerd Fonts downloads](https://www.nerdfonts.com/font-downloads)
+or the Artix `galaxy/ttf-tinos-nerd` package.
+
+```sh
+mkdir -p ~/.config/fontconfig/conf.d
+install -m644 examples/fontconfig/60-kajitsu-fonts.conf ~/.config/fontconfig/conf.d/
+fc-cache -f
+fc-match monospace
+fc-match sans-serif
+fc-match serif
+```
+
+These preferences apply when an application requests a generic font family.
+Applications with explicit font settings need their own configuration. Restart
+applications that have already loaded their fonts. Kajitsu uses Inter for UI text
+and GeistMono for icons; bottom uses the font selected in WezTerm.
+
 ### Optional
 
 These are only needed for their corresponding features:

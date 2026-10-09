@@ -41,6 +41,32 @@ The conversion uses native Mango workspace support from my local amane checkout.
 - Built-in settings window
 - Optional theme integrations for WezTerm, bottom, GTK, tmux, Vesktop, Spotify, and cava
 
+### System tray
+
+Running StatusNotifier applications appear in a compact pill beside the utility
+shortcuts on each monitor. It grows with its icons, disappears when empty, and
+puts excess items in an overflow list. Passive items stay hidden until active;
+attention icons receive an accent outline and retain their application colors.
+
+Left-click activates an app, right-click opens its exported menu, and middle-click
+sends secondary activation. Menu-only items open their menu on left-click.
+Applications without an exported menu receive ContextMenu on right-click.
+Both scroll axes are forwarded; hovering shows a plain-text tooltip after 400ms.
+Menus support check/radio states, icons, live updates, lazy submenus, and scrolling.
+Use arrow keys, Home/End, Enter/Space, Escape, or an outside click.
+
+**Settings → Bar → System tray** controls application icons independently of
+**Utility shortcuts**, which retains the existing `bar_tray` preference. The tray
+holds an auto-hidden bar open on the clicked monitor. Removal, disabling the tray,
+output removal, and starting the session lock close its popup.
+
+Kajitsu starts a native watcher on the session bus or joins an existing watcher
+as a host without replacing it. It follows owner changes and reconnects after
+bus loss. Local amane's owned-image helpers let updated tray images be released
+without growing its file cache. XEmbed-only legacy icons and animated attention
+movies are unsupported. See [native tray verification](docs/desktop-setup.md#system-tray)
+for the controlled fixture and regression commands.
+
 ## Installation
 
 Kajitsu builds directly against the local amane checkout in `~/Documents/amane`. Keep the two repositories as siblings:

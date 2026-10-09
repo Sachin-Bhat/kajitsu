@@ -14,6 +14,53 @@ The selected wallpaper is the existing `artix-black-4k.png` from `~/Pictures/Wal
 
 The power-menu button uses the Artix logo. Power actions use the login1 DBus interface provided by elogind on this dinit system. Startup selects `AMANE_BACKLIGHT_DEVICE=amdgpu_bl1` so brightness controls the laptop panel rather than the separate NVIDIA backlight device.
 
+## System tray
+
+The native application tray uses StatusNotifier and DBusMenu on the session bus.
+It acquires free KDE/freedesktop watcher names and hosts existing watchers without
+replacing their owner. Both bars share a registry; popups belong to the clicked
+output. Active and attention items appear in registration order, with adaptive
+width and an overflow list. Empty trays take no space.
+
+Left/right/middle clicks activate, open a menu, and send secondary activation;
+both wheel axes are forwarded. Menu-only items open on left-click. Tooltips show
+plain text after 400ms and take no input. Menus support disabled/hidden entries,
+separators, checkbox/radio state, icons, live updates, and lazy side submenus.
+Arrow keys, Home/End, Enter/Space, Escape, and outside-click work in the menu;
+overflow also supports keyboard selection. Long content scrolls within the output.
+
+Settings → Bar has separate **System tray** (`bar_systray=true`) and
+**Utility shortcuts** (`bar_tray`) switches. Disabling the tray closes its popup
+while discovery continues. An open popup holds only its own auto-hidden bar.
+Owner loss, output removal, and lock startup also close it. Calls run off the
+drawing thread with three-second D-Bus timeouts; queued jobs validate item and
+popup generations before sending actions. XEmbed-only icons and animated
+attention movies are outside this implementation.
+
+Build and run the controlled native regression:
+
+```sh
+env RUSTC_WRAPPER= cargo build --release --locked --bin kajitsu --example systray-fixture
+python3 scripts/check-mango-systray.py --binary target/release/kajitsu --fixture target/release/examples/systray-fixture
+```
+
+The runner creates its own session bus, HOME/XDG directories, and two headless
+Mango outputs at scales 1 and 1.25. It records actual fixture calls and screenshots
+under the printed `/tmp/kajitsu-systray-check-*` path. It verifies both registration
+forms and duplicates, pointer/keyboard menus, tooltips, both scroll axes, icon/status
+updates, malformed data, overflow, watcher hosting/replacement, owner restart,
+method stalls, queued-request cancellation, bus reconnection, settings visibility,
+top/bottom placement, auto-hide hold, and output-removal teardown. It needs the
+panel-check dependencies plus dbus-daemon, busctl, and xkbcommon development files.
+Its output driver rejects physical output names. Real applications and the daily
+compositor are not used.
+
+Local amane includes commit `1b07d1f` for owned RGBA/file images. Kajitsu's tray
+checks and the existing panel/layout regressions complement amane's image tests.
+Standalone amane strict Clippy still has the 13 confirmed pre-existing diagnostics;
+all other lint categories are checked strictly. Physical authentication, power
+actions, and hardware hotplug remain the manual checks listed below.
+
 ## Shortcuts
 
 | Shortcut | Action |

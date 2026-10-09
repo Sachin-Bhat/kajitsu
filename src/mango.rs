@@ -55,6 +55,9 @@ fn parse_output_geometries(reply: &str) -> Result<Vec<OutputGeometry>, String> {
         .ok_or("Mango reply has no monitor list")?;
     monitors
         .iter()
+        .filter(|monitor| {
+            !(monitor["width"].as_u64() == Some(0) && monitor["height"].as_u64() == Some(0))
+        })
         .map(|monitor| {
             let name = monitor["name"]
                 .as_str()
@@ -194,6 +197,12 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
+    }
+    #[test]
+    fn disabled_output_does_not_invalidate_live_output_geometry() {
+        let outputs = parse_output_geometries(r#"{"monitors":[{"name":"live","x":0,"y":0,"width":1280,"height":720,"scale":1},{"name":"off","x":0,"y":0,"width":0,"height":0,"scale":1.25}]}"#).unwrap();
+        assert_eq!(outputs.len(), 1);
+        assert_eq!(outputs[0].name, "live");
     }
     #[test]
     fn desktop_requires_every_selected_tag_to_be_empty() {

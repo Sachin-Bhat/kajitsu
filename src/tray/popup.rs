@@ -66,6 +66,14 @@ pub(crate) fn view(monitor: &Monitor) -> LayerWindow {
     let Some(popup) = popup else {
         return window.visible(false).click_through();
     };
+    let bar_height = crate::bar::height().ceil() as i32;
+    let bottom = Settings::read().text("bar_position") == "bottom";
+    let window = window.input_region(vec![amane::InputArea {
+        x: 0,
+        y: if bottom { 0 } else { bar_height },
+        width: monitor.width as i32,
+        height: (monitor.height as i32 - bar_height).max(0),
+    }]);
     let theme = theme::current();
     let size = (monitor.width as f32, monitor.height as f32);
     let mut panels: Vec<Box<dyn Widget>> = vec![Box::new(
@@ -324,17 +332,29 @@ fn menu_row(
         MenuKind::Radio { .. } => "󰐿",
         _ => "",
     };
-    let mark = if let Some(image) = &node.icon.normal {
-        Rectangle::new()
-            .width(18.0)
-            .height(18.0)
-            .fill(image.clone())
+    let mut marks: Vec<Box<dyn Widget>> = Vec::new();
+    if !toggle.is_empty() || node.icon.normal.is_none() {
+        marks.push(Box::new(
+            Rectangle::new()
+                .width(18.0)
+                .height(18.0)
+                .align_child(Center, Center)
+                .child(Text::new(toggle).font(fonts::NERD).size(15.0).color(color)),
+        ));
+    }
+    if let Some(image) = &node.icon.normal {
+        marks.push(Box::new(
+            Rectangle::new()
+                .width(18.0)
+                .height(18.0)
+                .fill(image.clone()),
+        ));
+    }
+    let mark = Row::new(marks).gap(4.0).align(Center);
+    let extra = if !toggle.is_empty() && node.icon.normal.is_some() {
+        22.0
     } else {
-        Rectangle::new()
-            .width(18.0)
-            .height(18.0)
-            .align_child(Center, Center)
-            .child(Text::new(toggle).font(fonts::NERD).size(15.0).color(color))
+        0.0
     };
     let row = Rectangle::new()
         .width(width)
@@ -355,7 +375,7 @@ fn menu_row(
             Row::new(children![
                 mark,
                 Rectangle::new()
-                    .width((width - 58.0).max(0.0))
+                    .width((width - 58.0 - extra).max(0.0))
                     .height(ROW)
                     .align_child(amane::Start, Center)
                     .child(

@@ -1,4 +1,4 @@
-/* Virtual pointer used only by the disposable Mango panel check. */
+/* Virtual pointer for disposable Mango UI checks. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,16 +66,29 @@ int main(int argc, char **argv) {
     wl_display_roundtrip(display);
     usleep(250000);
     unsigned x, y, tick = 1;
+    char line[256], action[16];
     int result = 0;
-    while (scanf("%u %u", &x, &y) == 2) {
+    while (fgets(line, sizeof(line), stdin)) {
+        double amount = 15.0;
+        int fields = sscanf(line, "%u %u %15s %lf", &x, &y, action, &amount);
+        if (fields < 2) continue;
+        if (fields == 2) strcpy(action, "left");
         zwlr_virtual_pointer_v1_motion_absolute(pointer, tick++, x, y,
                                               atoi(argv[2]), atoi(argv[3]));
         zwlr_virtual_pointer_v1_frame(pointer);
         wl_display_roundtrip(display);
-        zwlr_virtual_pointer_v1_button(pointer, tick++, 272, WL_POINTER_BUTTON_STATE_PRESSED);
-        zwlr_virtual_pointer_v1_frame(pointer);
-        wl_display_roundtrip(display);
-        zwlr_virtual_pointer_v1_button(pointer, tick++, 272, WL_POINTER_BUTTON_STATE_RELEASED);
+        if (!strcmp(action, "scroll") || !strcmp(action, "scroll-x")) {
+            zwlr_virtual_pointer_v1_axis_source(pointer, WL_POINTER_AXIS_SOURCE_WHEEL);
+            zwlr_virtual_pointer_v1_axis_discrete(pointer, tick++,
+                !strcmp(action, "scroll-x") ? WL_POINTER_AXIS_HORIZONTAL_SCROLL : WL_POINTER_AXIS_VERTICAL_SCROLL,
+                wl_fixed_from_double(amount), (int)(amount / 15.0));
+        } else if (strcmp(action, "move")) {
+            unsigned button = !strcmp(action, "right") ? 273 : !strcmp(action, "middle") ? 274 : 272;
+            zwlr_virtual_pointer_v1_button(pointer, tick++, button, WL_POINTER_BUTTON_STATE_PRESSED);
+            zwlr_virtual_pointer_v1_frame(pointer);
+            wl_display_roundtrip(display);
+            zwlr_virtual_pointer_v1_button(pointer, tick++, button, WL_POINTER_BUTTON_STATE_RELEASED);
+        }
         zwlr_virtual_pointer_v1_frame(pointer);
         result = wl_display_roundtrip(display);
         if (result < 0) break;

@@ -80,6 +80,8 @@ fn main() {
         .window_per_monitor(overlay::dismiss::view)
         .window_per_monitor(overlay::view)
         .window_per_monitor(wallpaper::picker::view)
+        .window_per_monitor(tray::popup::view)
+        .window_per_monitor(tray::popup::tooltip_view)
         .lock(lock_screen::view)
         .ipc("launcher", overlay::launcher::ipc)
         .ipc("utility", overlay::utility::ipc)

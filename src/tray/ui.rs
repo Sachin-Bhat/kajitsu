@@ -24,6 +24,8 @@ pub(crate) struct MenuSession {
 pub(crate) struct OverflowSession {
     pub anchor: SlotAnchor,
     pub keys: Vec<ItemKey>,
+    pub selected: usize,
+    pub scroll_rows: usize,
 }
 #[derive(Clone)]
 pub(crate) enum PopupSession {
@@ -61,14 +63,117 @@ impl Service for TrayUi {
             drop(state);
             if close {
                 self::close();
-            } else if show && let Some(t) = Self::write().tooltip.as_mut() {
-                t.shown = true;
+            } else if show {
+                Self::write().show_tooltip(Instant::now());
             }
         }
     }
 }
 
 impl TrayUi {
+    pub fn show_tooltip(&mut self, now: Instant) -> bool {
+        if let Some(t) = self
+            .tooltip
+            .as_mut()
+            .filter(|t| !t.shown && now >= t.deadline)
+        {
+            t.shown = true;
+            return true;
+        }
+        false
+    }
+    pub fn holds_bar(&self, output: &str) -> bool {
+        self.popup.as_ref().is_some_and(|p| match p {
+            PopupSession::Menu(m) => m.anchor.output == output,
+            PopupSession::Overflow(o) => o.anchor.output == output,
+        })
+    }
+    pub fn navigate(&mut self, key: amane::Key, visible_count: usize) -> Navigation {
+        if key == amane::Key::Escape {
+            self.popup = None;
+            self.tooltip = None;
+            return Navigation::None;
+        }
+        if let Some(PopupSession::Overflow(o)) = &mut self.popup {
+            if o.keys.is_empty() {
+                return Navigation::None;
+            }
+            o.selected = o.selected.min(o.keys.len() - 1);
+            match key {
+                amane::Key::Home => o.selected = 0,
+                amane::Key::End => o.selected = o.keys.len() - 1,
+                amane::Key::Up => o.selected = (o.selected + o.keys.len() - 1) % o.keys.len(),
+                amane::Key::Down => o.selected = (o.selected + 1) % o.keys.len(),
+                amane::Key::Enter | amane::Key::Space => {
+                    return Navigation::Overflow(o.keys[o.selected].clone(), o.anchor.clone());
+                }
+                _ => return Navigation::None,
+            }
+            if o.selected < o.scroll_rows {
+                o.scroll_rows = o.selected;
+            } else if o.selected >= o.scroll_rows + visible_count {
+                o.scroll_rows = o.selected + 1 - visible_count.max(1);
+            }
+            return Navigation::None;
+        }
+        let Some(menu) = self.menu_mut() else {
+            return Navigation::None;
+        };
+        let Some(tree) = &menu.tree else {
+            return Navigation::None;
+        };
+        if key == amane::Key::Left && menu.path.len() > 1 {
+            menu.selected = menu.path.pop();
+            menu.scroll_rows = 0;
+            return Navigation::None;
+        }
+        let Some(parent) = menu.path.last().and_then(|id| tree.nodes.get(id)) else {
+            return Navigation::None;
+        };
+        let rows: Vec<_> = parent
+            .children
+            .iter()
+            .filter_map(|id| tree.nodes.get(id))
+            .filter(|n| n.visible)
+            .collect();
+        let actions: Vec<_> = rows
+            .iter()
+            .filter(|n| n.enabled && n.kind != MenuKind::Separator)
+            .collect();
+        if actions.is_empty() {
+            return Navigation::None;
+        }
+        let index = actions
+            .iter()
+            .position(|n| Some(n.id) == menu.selected)
+            .unwrap_or(0);
+        let target = match key {
+            amane::Key::Home => 0,
+            amane::Key::End => actions.len() - 1,
+            amane::Key::Up => (index + actions.len() - 1) % actions.len(),
+            amane::Key::Down => (index + 1) % actions.len(),
+            amane::Key::Right | amane::Key::Enter | amane::Key::Space => {
+                let row = actions[index];
+                return if row.has_submenu {
+                    Navigation::Open(menu.request, row.id)
+                } else if key != amane::Key::Right {
+                    Navigation::Activate(menu.request, row.id)
+                } else {
+                    Navigation::None
+                };
+            }
+            _ => return Navigation::None,
+        };
+        menu.selected = Some(actions[target].id);
+        if let Some(index) = rows.iter().position(|n| Some(n.id) == menu.selected) {
+            if index < menu.scroll_rows {
+                menu.scroll_rows = index;
+            } else if index >= menu.scroll_rows + visible_count {
+                menu.scroll_rows = index + 1 - visible_count.max(1);
+            }
+        }
+        Navigation::None
+    }
     pub fn menu(&self) -> Option<&MenuSession> {
         match &self.popup {
             Some(PopupSession::Menu(menu)) => Some(menu),
@@ -109,6 +214,9 @@ impl TrayUi {
             let Some(old) = &menu.tree else {
                 return false;
             };
+            if !old.nodes.contains_key(&parent) {
+                return false;
+            }
             let mut merged = old.as_ref().clone();
             fn remove(tree: &mut MenuTree, id: i32) {
                 if let Some(node) = tree.nodes.remove(&id) {
@@ -236,6 +344,67 @@ impl TrayUi {
     }
 }
 
+pub(crate) enum Navigation {
+    None,
+    Open(u64, i32),
+    Activate(u64, i32),
+    Overflow(ItemKey, SlotAnchor),
+}
+
+pub(crate) fn select_row(request: u64, row_id: i32) {
+    let state = TrayUi::read();
+    if !state.row_valid(request, row_id) || state.menu().is_some_and(|m| m.selected == Some(row_id))
+    {
+        return;
+    }
+    drop(state);
+    let mut state = TrayUi::write();
+    if !state.row_valid(request, row_id) {
+        return;
+    }
+    if let Some(menu) = state.menu_mut() {
+        if let Some(depth) = menu.path.iter().position(|id| {
+            menu.tree
+                .as_ref()
+                .and_then(|t| t.nodes.get(id))
+                .is_some_and(|n| n.children.contains(&row_id))
+        }) {
+            menu.path.truncate(depth + 1);
+        }
+        menu.selected = Some(row_id);
+    }
+}
+pub(crate) fn enter_submenu(request: u64, row_id: i32) {
+    let state = TrayUi::read();
+    if !state.row_valid(request, row_id)
+        || !state
+            .menu()
+            .and_then(|m| m.tree.as_ref())
+            .and_then(|t| t.nodes.get(&row_id))
+            .is_some_and(|n| n.has_submenu)
+    {
+        return;
+    }
+    let Some(menu) = state.menu().cloned() else {
+        return;
+    };
+    drop(state);
+    select_row(request, row_id);
+    let mut state = TrayUi::write();
+    if let Some(current) = state.menu_mut().filter(|m| m.request == request) {
+        if current.path.contains(&row_id) {
+            return;
+        }
+        current.path.push(row_id);
+        current.selected = None;
+        current.scroll_rows = 0;
+    } else {
+        return;
+    }
+    drop(state);
+    super::menu::client::show(menu.key, menu.menu_path, request, row_id);
+}
+
 pub(crate) fn open_menu(key: ItemKey, anchor: SlotAnchor) {
     let path = super::Tray::read()
         .snapshot()
@@ -252,7 +421,12 @@ pub(crate) fn open_menu(key: ItemKey, anchor: SlotAnchor) {
 }
 pub(crate) fn open_overflow(anchor: SlotAnchor, keys: Vec<ItemKey>) {
     let mut ui = TrayUi::write();
-    ui.popup = Some(PopupSession::Overflow(OverflowSession { anchor, keys }));
+    ui.popup = Some(PopupSession::Overflow(OverflowSession {
+        anchor,
+        keys,
+        selected: 0,
+        scroll_rows: 0,
+    }));
     ui.tooltip = None;
 }
 pub(crate) fn close() {
@@ -269,7 +443,7 @@ pub(crate) fn close_request(request: u64) {
 }
 pub(crate) fn hover(item: Option<(ItemKey, SlotAnchor)>) {
     let ui = TrayUi::read();
-    if ui.popup.is_some()
+    if matches!(ui.popup, Some(PopupSession::Menu(_)))
         || match &item {
             Some((key, _)) => ui.tooltip.as_ref().is_some_and(|t| &t.key == key),
             None => ui.tooltip.is_none(),
@@ -286,10 +460,7 @@ pub(crate) fn hover(item: Option<(ItemKey, SlotAnchor)>) {
     });
 }
 pub(crate) fn keep_bar_visible(output: &str) -> bool {
-    TrayUi::read().popup.as_ref().is_some_and(|p| match p {
-        PopupSession::Menu(m) => m.anchor.output == output,
-        PopupSession::Overflow(o) => o.anchor.output == output,
-    })
+    TrayUi::read().holds_bar(output)
 }
 pub(crate) fn reconcile(live: &[ItemKey], outputs: &[String], enabled: bool) {
     let state = TrayUi::read();
@@ -421,5 +592,59 @@ mod tests {
             15,
             decode_layout(4, node(15, "branch", vec![node(16, "too deep", vec![])])).unwrap()
         ));
+    }
+
+    #[test]
+    fn keyboard_navigation_skips_non_actions() {
+        let mut ui = TrayUi::default();
+        let request = ui.begin_menu(key(":1.1"), anchor(), "/Menu".into());
+        let mut disabled = node(2, "disabled", vec![]);
+        disabled.1.insert("enabled".into(), OwnedValue::from(false));
+        ui.accept_layout(
+            request,
+            0,
+            decode_layout(
+                1,
+                node(
+                    0,
+                    "",
+                    vec![node(1, "first", vec![]), disabled, node(3, "last", vec![])],
+                ),
+            )
+            .unwrap(),
+        );
+        ui.navigate(amane::Key::Down, 10);
+        assert_eq!(ui.menu().unwrap().selected, Some(3));
+        ui.navigate(amane::Key::Home, 10);
+        assert_eq!(ui.menu().unwrap().selected, Some(1));
+        ui.navigate(amane::Key::Escape, 10);
+        assert!(ui.popup.is_none());
+    }
+    #[test]
+    fn tooltip_delay_and_teardown() {
+        let mut ui = TrayUi::default();
+        let now = Instant::now();
+        ui.tooltip = Some(TooltipSession {
+            key: key(":1.1"),
+            anchor: anchor(),
+            shown: false,
+            deadline: now + Duration::from_millis(400),
+        });
+        assert!(!ui.show_tooltip(now + Duration::from_millis(399)));
+        assert!(ui.show_tooltip(now + Duration::from_millis(400)));
+        assert!(ui.tooltip.as_ref().unwrap().shown);
+        ui.begin_menu(key(":1.1"), anchor(), "/Menu".into());
+        assert!(ui.tooltip.is_none());
+        ui.reconcile(&[key(":1.1")], &["DP-9".into()], false);
+        assert!(ui.popup.is_none());
+    }
+    #[test]
+    fn menu_holds_only_its_output_bar() {
+        let mut ui = TrayUi::default();
+        ui.begin_menu(key(":1.1"), anchor(), "/Menu".into());
+        assert!(ui.holds_bar("DP-9"));
+        assert!(!ui.holds_bar("eDP-1"));
+        ui.reconcile(&[key(":1.1")], &["eDP-1".into()], true);
+        assert!(ui.popup.is_none());
     }
 }

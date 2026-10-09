@@ -5,7 +5,7 @@ mod reveal;
 mod ring;
 mod star;
 mod system;
-mod systray;
+pub(crate) mod systray;
 mod timer;
 mod workspaces;
 
@@ -63,7 +63,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     drop(settings);
 
     // how far the bar is out, always all the way unless it hides
-    let target = if !hides || Reveal::read().inside {
+    let target = if !hides || Reveal::read().inside || crate::tray::ui::keep_bar_visible(&monitor.name) {
         1.0
     } else {
         0.0

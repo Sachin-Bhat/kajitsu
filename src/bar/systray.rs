@@ -141,11 +141,17 @@ pub(crate) fn icon(item: &TrayItem, theme: &Theme) -> Rectangle {
                 .fill(overlay.clone()),
         ));
     }
-    Rectangle::new()
+    let icon = Rectangle::new()
         .width(SLOT)
         .height(SLOT)
+        .radius(5.0)
         .align_child(Center, Center)
-        .child(Stack::new(pictures).width(18.0).height(18.0))
+        .child(Stack::new(pictures).width(18.0).height(18.0));
+    if attention {
+        icon.border(1.0, theme.accent)
+    } else {
+        icon
+    }
 }
 
 pub(crate) fn slot(item: Arc<TrayItem>, theme: &Theme, anchor: SlotAnchor) -> Rectangle {
@@ -153,28 +159,42 @@ pub(crate) fn slot(item: Arc<TrayItem>, theme: &Theme, anchor: SlotAnchor) -> Re
     let hover_anchor = anchor.clone();
     let scroll_key = item.key.clone();
     let scroll_anchor = anchor.clone();
+    let hovered = ui::TrayUi::read()
+        .tooltip
+        .as_ref()
+        .is_some_and(|t| t.key == item.key);
     icon(&item, theme)
+        .fill(if hovered {
+            theme.hover_surface
+        } else {
+            amane::Color::TRANSPARENT
+        })
         .cursor(Pointer)
         .on_hover(move |inside| {
             ui::hover(inside.then(|| (hover_key.clone(), hover_anchor.clone())))
         })
         .on_scroll(move |scroll| actions::scroll(scroll_key.clone(), scroll, scroll_anchor.clone()))
-        .on_click(move |button| match button {
-            Button::Left if item.properties.item_is_menu => {
-                ui::open_menu(item.key.clone(), anchor.clone())
-            }
-            Button::Left => {
-                actions::submit(item.key.clone(), ItemAction::Activate, anchor.clone());
-            }
-            Button::Right => ui::open_menu(item.key.clone(), anchor.clone()),
-            Button::Middle => {
-                actions::submit(
-                    item.key.clone(),
-                    ItemAction::SecondaryActivate,
-                    anchor.clone(),
-                );
-            }
-        })
+        .on_click(move |button| click(item.clone(), button, anchor.clone()))
+}
+
+pub(crate) fn click(item: Arc<TrayItem>, button: Button, anchor: SlotAnchor) {
+    ui::close();
+    match button {
+        Button::Left if item.properties.item_is_menu => {
+            ui::open_menu(item.key.clone(), anchor.clone())
+        }
+        Button::Left => {
+            actions::submit(item.key.clone(), ItemAction::Activate, anchor.clone());
+        }
+        Button::Right => ui::open_menu(item.key.clone(), anchor.clone()),
+        Button::Middle => {
+            actions::submit(
+                item.key.clone(),
+                ItemAction::SecondaryActivate,
+                anchor.clone(),
+            );
+        }
+    }
 }
 
 #[cfg(test)]

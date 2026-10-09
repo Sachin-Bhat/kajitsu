@@ -205,6 +205,11 @@ impl Settings {
         settings.draft.insert(String::from(key), value);
 
         settings.save();
+        let close_tray = !settings.flag("bar_systray");
+        drop(settings);
+        if close_tray {
+            crate::tray::ui::close();
+        }
     }
 
     pub fn apply() {
@@ -213,6 +218,11 @@ impl Settings {
         settings.values = settings.draft.clone();
 
         settings.save();
+        let close_tray = !settings.flag("bar_systray");
+        drop(settings);
+        if close_tray {
+            crate::tray::ui::close();
+        }
     }
 
     // the draft starts over from what the shell uses

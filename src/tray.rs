@@ -1,11 +1,12 @@
 pub(crate) mod actions;
-pub(crate) mod menu;
-pub(crate) mod ui;
 mod backend;
 mod icons;
 mod item;
+pub(crate) mod menu;
 pub(crate) mod model;
+pub(crate) mod popup;
 mod registry;
+pub(crate) mod ui;
 mod watcher;
 
 use amane::Service;

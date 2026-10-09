@@ -85,7 +85,7 @@ pub fn build(page: &mut Page) {
     switch::add(
         page,
         "bar_systray",
-        "Application system tray",
+        "System tray",
         "Show running applications and their menus",
     );
 

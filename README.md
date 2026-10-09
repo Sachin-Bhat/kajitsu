@@ -1,17 +1,20 @@
-<div align="center">
-  <p>
-    <img src="assets/fruit-basket.svg" alt="A woven basket filled with colorful fruit, including a golden mango" width="160" height="160">
-  </p>
-  <h1>kajitsu (果実)</h1>
-  <p><strong>A hard fork of suzuha.</strong><br>
-  A personal Wayland desktop shell written in Rust with amane, being adapted for my daily-driver compositor, Mango.</p>
+<p align="center">
+  <img src="assets/fruit-basket.svg" alt="A woven basket filled with colorful fruit, including a golden mango" width="160" height="160">
+</p>
 
-  <p>
-    <img alt="amane 0.1" src="https://img.shields.io/badge/AMANE-0.1-89b4fa?style=flat-square&labelColor=181825">
-    <img alt="Target compositor: Mango" src="https://img.shields.io/badge/TARGET_COMPOSITOR-MANGO-89b4fa?style=flat-square&labelColor=181825">
-    <img alt="Rust" src="https://img.shields.io/badge/LANGUAGE-RUST-89b4fa?style=flat-square&labelColor=181825">
-  </p>
-</div>
+<h1 align="center">kajitsu (果実)</h1>
+
+<p align="center"><strong>A hard fork of suzuha.</strong></p>
+
+<p align="center">
+  A personal Wayland desktop shell written in Rust with amane, being adapted for my daily-driver compositor, Mango.
+</p>
+
+<p align="center">
+  <img alt="amane 0.1" src="https://img.shields.io/badge/AMANE-0.1-89b4fa?style=flat-square&labelColor=181825">
+  <img alt="Target compositor: Mango" src="https://img.shields.io/badge/TARGET_COMPOSITOR-MANGO-89b4fa?style=flat-square&labelColor=181825">
+  <img alt="Rust" src="https://img.shields.io/badge/LANGUAGE-RUST-89b4fa?style=flat-square&labelColor=181825">
+</p>
 
 ## Preview
 

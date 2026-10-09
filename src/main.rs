@@ -17,6 +17,7 @@ mod recorder;
 mod screen_mask;
 mod settings;
 mod theme;
+mod tray;
 mod wallpaper;
 
 use amane::{App, Apps, Notifications, Service};
@@ -57,6 +58,9 @@ fn main() {
 
     // the notification server starts here, so nothing sent before the panel first opens is lost
     drop(Notifications::read());
+
+    // one native tray registry is shared by every bar
+    drop(tray::Tray::read());
 
     // listens for logind asking to lock, like `loginctl lock-session` from the power menu
     drop(Logind::read());

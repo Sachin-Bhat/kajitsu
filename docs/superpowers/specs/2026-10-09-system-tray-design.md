@@ -2,7 +2,7 @@
 
 Date: 2026-10-09
 
-Status: the in-chat design is approved; this written spec awaits review.
+Status: spec and plan approved; native implementation in progress.
 
 ## Intended outcome
 

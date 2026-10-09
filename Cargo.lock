@@ -840,6 +840,7 @@ dependencies = [
  "amane",
  "serde_json",
  "toml_edit",
+ "zbus",
 ]
 
 [[package]]

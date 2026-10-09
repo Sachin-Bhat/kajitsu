@@ -1,4 +1,5 @@
 mod center;
+mod layout;
 mod motion;
 mod pill;
 mod reveal;
@@ -63,11 +64,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     drop(settings);
 
     // how far the bar is out, always all the way unless it hides
-    let target = if !hides || Reveal::read().inside || crate::tray::ui::keep_bar_visible(&monitor.name) {
-        1.0
-    } else {
-        0.0
-    };
+    let target =
+        if !hides || Reveal::read().inside || crate::tray::ui::keep_bar_visible(&monitor.name) {
+            1.0
+        } else {
+            0.0
+        };
 
     let shown = shell_motion::follow(&format!("bar:{}", monitor.name), target, DEFAULT_SPATIAL);
 

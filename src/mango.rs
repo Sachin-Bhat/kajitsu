@@ -3,6 +3,8 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::time::Duration;
 
+pub mod layouts;
+
 pub fn desktop_empty(tags: &[TagState]) -> bool {
     let selected: Vec<_> = tags.iter().filter(|tag| tag.selected).collect();
     !selected.is_empty() && selected.iter().all(|tag| tag.windows == 0 && !tag.global)
@@ -98,6 +100,10 @@ pub fn quit() -> Result<(), String> {
 }
 
 fn request(command: &str) -> Result<String, String> {
+    read_reply(connect(command)?, Duration::from_secs(3))
+}
+
+fn connect(command: &str) -> Result<UnixStream, String> {
     let path =
         std::env::var_os("MANGO_INSTANCE_SIGNATURE").ok_or("Mango IPC socket is unavailable")?;
     let mut stream =
@@ -106,7 +112,7 @@ fn request(command: &str) -> Result<String, String> {
         .set_write_timeout(Some(Duration::from_secs(3)))
         .map_err(|e| e.to_string())?;
     writeln!(stream, "{command}").map_err(|e| format!("Mango request failed: {e}"))?;
-    read_reply(stream, Duration::from_secs(3))
+    Ok(stream)
 }
 
 fn read_reply(stream: UnixStream, timeout: Duration) -> Result<String, String> {

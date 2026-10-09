@@ -56,6 +56,12 @@ pub fn build(page: &mut Page) {
     );
     switch::add(
         page,
+        "bar_layout",
+        "Layout switcher",
+        "Show the current Mango layout; click or scroll to switch",
+    );
+    switch::add(
+        page,
         "bar_workspace_name",
         "Workspace name",
         "Show the active workspace label",

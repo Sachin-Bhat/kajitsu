@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use amane::Service;
 
 // every setting and the value it has until changed
-const DEFAULTS: [(&str, &str); 71] = [
+const DEFAULTS: [(&str, &str); 72] = [
     // appearance
     ("blur_strength", "1"),
     ("reduce_transparency", "false"),
@@ -24,6 +24,7 @@ const DEFAULTS: [(&str, &str); 71] = [
     ("workspace_style", "pill"),
     ("bar_logo", "true"),
     ("bar_workspaces", "true"),
+    ("bar_layout", "true"),
     ("bar_workspace_name", "true"),
     ("bar_audio", "true"),
     ("bar_media", "true"),
